@@ -1,0 +1,515 @@
+# Teamwork Homecare Management System - Frontend Development Rules
+
+## 🎯 Project Overview
+This is a comprehensive healthcare management system frontend built with React, TypeScript, Vite, and Tailwind CSS. The system follows modern React patterns and healthcare UI/UX standards.
+
+## 🏗️ Architecture Patterns
+
+### Component Structure
+```
+src/
+├── components/     # Reusable UI components
+├── pages/         # Page-level components
+├── contexts/      # React Context providers
+├── services/      # API service layer
+├── hooks/         # Custom React hooks
+├── utils/         # Utility functions
+├── types/         # TypeScript type definitions
+├── config/        # Configuration files
+└── styles/        # Global styles and CSS
+```
+
+### API Integration Standards
+- **Centralized Configuration**: All API endpoints in `src/config/api.ts`
+- **Service Layer**: Create service classes for each domain
+- **Type Safety**: Use TypeScript interfaces for all API responses
+- **Error Handling**: Consistent error handling across services
+- **Loading States**: Implement loading states for all async operations
+
+### State Management
+- **Context API**: Use React Context for global state
+- **Local State**: Use useState/useReducer for component state
+- **Custom Hooks**: Extract reusable state logic into custom hooks
+- **Persistence**: Store user data and tokens in localStorage
+
+## 🎨 UI/UX Standards
+
+### Design System
+- **Tailwind CSS**: Use Tailwind for styling
+- **Component Library**: Build reusable component library
+- **Responsive Design**: Mobile-first responsive design
+- **Accessibility**: Follow WCAG 2.1 guidelines
+- **Healthcare UI**: Use healthcare-appropriate color schemes and icons
+
+### Component Patterns
+```typescript
+// Standard component structure
+interface ComponentProps {
+  // Props with proper typing
+}
+
+export default function Component({ prop1, prop2 }: ComponentProps) {
+  // Hooks at the top
+  const [state, setState] = useState();
+  
+  // Event handlers
+  const handleEvent = () => {
+    // Handler logic
+  };
+  
+  // Render
+  return (
+    <div className="component-classes">
+      {/* JSX content */}
+    </div>
+  );
+}
+```
+
+### Form Patterns
+```typescript
+// Form handling pattern
+const [formData, setFormData] = useState<FormData>({});
+const [errors, setErrors] = useState<Record<string, string>>({});
+const [isSubmitting, setIsSubmitting] = useState(false);
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  
+  try {
+    await service.method(formData);
+    // Success handling
+  } catch (error) {
+    // Error handling
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+```
+
+## 🔐 Authentication Integration
+
+### Auth Context Pattern
+```typescript
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => Promise<void>;
+  // ... other auth methods
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};
+```
+
+### Protected Routes
+```typescript
+// Route protection pattern
+const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
+  const { user, isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (requiredRole && user?.role !== requiredRole) {
+    return <Navigate to="/unauthorized" />;
+  }
+  
+  return <>{children}</>;
+};
+```
+
+## 📊 Data Management
+
+### API Service Pattern
+```typescript
+export class ServiceName {
+  async getItems(params?: SearchParams): Promise<PaginatedResponse<Item>> {
+    const response = await apiService.get<PaginatedResponse<Item>>(
+      API_ENDPOINTS.SERVICE.BASE,
+      { params }
+    );
+    return response.data;
+  }
+  
+  async getItem(id: string): Promise<Item> {
+    const response = await apiService.get<{ success: boolean; data: Item }>(
+      API_ENDPOINTS.SERVICE.BY_ID(id)
+    );
+    return response.data;
+  }
+  
+  async createItem(data: CreateItemData): Promise<Item> {
+    const response = await apiService.post<{ success: boolean; data: Item }>(
+      API_ENDPOINTS.SERVICE.BASE,
+      data
+    );
+    return response.data;
+  }
+}
+```
+
+### Custom Hooks Pattern
+```typescript
+export function useServiceData<T>(
+  serviceCall: () => Promise<T>,
+  dependencies: any[] = []
+) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const result = await serviceCall();
+        setData(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, dependencies);
+  
+  return { data, loading, error, refetch: () => fetchData() };
+}
+```
+
+## 🎭 Component Library Standards
+
+### Form Components
+```typescript
+// InputField component
+interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  error?: string;
+  label?: string;
+  required?: boolean;
+}
+
+export function InputField({ error, label, required, ...props }: InputFieldProps) {
+  return (
+    <div className="form-field">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+      )}
+      <input
+        className={`input-field ${error ? 'border-red-500' : ''}`}
+        {...props}
+      />
+      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+    </div>
+  );
+}
+```
+
+### Modal Components
+```typescript
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}
+
+export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 transition-opacity" onClick={onClose}>
+          <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <XIcon className="h-6 w-6" />
+              </button>
+            </div>
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+## 🎨 Styling Standards
+
+### Tailwind CSS Patterns
+```css
+/* Global styles in index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom component classes */
+@layer components {
+  .btn-primary {
+    @apply bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+  }
+  
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  }
+}
+```
+
+### Color Scheme
+- **Primary**: Blue (#0D6EFD)
+- **Secondary**: Green (#20B486)
+- **Success**: Green (#22C55E)
+- **Warning**: Yellow (#F59E0B)
+- **Error**: Red (#EF4444)
+- **Info**: Blue (#3B82F6)
+
+## 🔄 State Management Patterns
+
+### Context Provider Pattern
+```typescript
+interface ContextType {
+  // Context state and methods
+}
+
+const Context = createContext<ContextType | undefined>(undefined);
+
+export const useContext = () => {
+  const context = useContext(Context);
+  if (!context) {
+    throw new Error('useContext must be used within ContextProvider');
+  }
+  return context;
+};
+
+export const ContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Context logic
+  
+  return (
+    <Context.Provider value={value}>
+      {children}
+    </Context.Provider>
+  );
+};
+```
+
+### Custom Hook Patterns
+```typescript
+// Data fetching hook
+export function useApiData<T>(
+  apiCall: () => Promise<T>,
+  dependencies: any[] = []
+) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const refetch = useCallback(async () => {
+    try {
+      setLoading(true);
+      const result = await apiCall();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, dependencies);
+  
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+  
+  return { data, loading, error, refetch };
+}
+```
+
+## 🧪 Testing Standards
+
+### Component Testing
+```typescript
+import { render, screen, fireEvent } from '@testing-library/react';
+import { Component } from './Component';
+
+describe('Component', () => {
+  it('renders correctly', () => {
+    render(<Component prop1="value" />);
+    expect(screen.getByText('Expected Text')).toBeInTheDocument();
+  });
+  
+  it('handles user interaction', () => {
+    const mockHandler = jest.fn();
+    render(<Component onAction={mockHandler} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    expect(mockHandler).toHaveBeenCalled();
+  });
+});
+```
+
+### Hook Testing
+```typescript
+import { renderHook, act } from '@testing-library/react';
+import { useCustomHook } from './useCustomHook';
+
+describe('useCustomHook', () => {
+  it('returns initial state', () => {
+    const { result } = renderHook(() => useCustomHook());
+    expect(result.current.data).toBeNull();
+    expect(result.current.loading).toBe(true);
+  });
+});
+```
+
+## 🚀 Performance Standards
+
+### Code Splitting
+```typescript
+// Lazy loading components
+const LazyComponent = lazy(() => import('./LazyComponent'));
+
+// Route-based code splitting
+const routes = [
+  {
+    path: '/dashboard',
+    component: lazy(() => import('./pages/Dashboard'))
+  }
+];
+```
+
+### Memoization
+```typescript
+// Memoize expensive calculations
+const expensiveValue = useMemo(() => {
+  return heavyCalculation(data);
+}, [data]);
+
+// Memoize callbacks
+const handleClick = useCallback(() => {
+  // Handler logic
+}, [dependency]);
+```
+
+## 🏥 Healthcare UI Standards
+
+### Accessibility
+- **ARIA Labels**: Use proper ARIA labels for screen readers
+- **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+- **Color Contrast**: Maintain WCAG AA color contrast ratios
+- **Focus Management**: Proper focus management in modals and forms
+
+### Healthcare-Specific Patterns
+```typescript
+// Status indicators
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'active': return 'text-green-600 bg-green-100';
+    case 'pending': return 'text-yellow-600 bg-yellow-100';
+    case 'inactive': return 'text-gray-600 bg-gray-100';
+    default: return 'text-gray-600 bg-gray-100';
+  }
+};
+
+// Priority indicators
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case 'urgent': return 'text-red-600 bg-red-100';
+    case 'high': return 'text-orange-600 bg-orange-100';
+    case 'medium': return 'text-yellow-600 bg-yellow-100';
+    case 'low': return 'text-green-600 bg-green-100';
+    default: return 'text-gray-600 bg-gray-100';
+  }
+};
+```
+
+## 📱 Responsive Design
+
+### Breakpoint Strategy
+```typescript
+// Tailwind breakpoints
+const breakpoints = {
+  sm: '640px',   // Mobile landscape
+  md: '768px',   // Tablet
+  lg: '1024px',  // Desktop
+  xl: '1280px',  // Large desktop
+  '2xl': '1536px' // Extra large desktop
+};
+
+// Responsive component pattern
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {/* Responsive grid */}
+</div>
+```
+
+## 🔧 Development Workflow
+
+### File Naming Conventions
+- **Components**: PascalCase (e.g., `UserProfile.tsx`)
+- **Hooks**: camelCase starting with 'use' (e.g., `useAuth.ts`)
+- **Services**: camelCase (e.g., `authService.ts`)
+- **Types**: PascalCase (e.g., `User.ts`)
+- **Utils**: camelCase (e.g., `formatDate.ts`)
+
+### Import Organization
+```typescript
+// 1. React imports
+import React, { useState, useEffect } from 'react';
+
+// 2. Third-party imports
+import { useQuery } from '@tanstack/react-query';
+
+// 3. Internal imports (absolute paths)
+import { useAuth } from '@/contexts/AuthContext';
+import { apiService } from '@/services/api';
+
+// 4. Relative imports
+import './Component.css';
+```
+
+## 🎯 Success Criteria
+
+### Code Quality
+- ✅ TypeScript strict mode enabled
+- ✅ ESLint and Prettier configured
+- ✅ Consistent naming conventions
+- ✅ Proper error handling
+- ✅ Loading states for all async operations
+
+### User Experience
+- ✅ Responsive design on all devices
+- ✅ Accessible to screen readers
+- ✅ Fast loading times
+- ✅ Intuitive navigation
+- ✅ Clear error messages
+
+### Healthcare Compliance
+- ✅ HIPAA-compliant UI patterns
+- ✅ Secure data handling
+- ✅ Audit trail for user actions
+- ✅ Role-based access control
+- ✅ Data validation and sanitization
+
+Remember: Always prioritize user experience, accessibility, and healthcare compliance in the frontend. Follow these patterns consistently to ensure code quality and maintainability.

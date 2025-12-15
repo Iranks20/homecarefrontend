@@ -1,0 +1,92 @@
+import { Physiotherapist } from '../types';
+
+export const physiotherapists: Physiotherapist[] = [
+  {
+    id: '1',
+    name: 'Sarah Johnson',
+    email: 'sarah.johnson@teamworkhomecare.com',
+    phone: '+1-555-0111',
+    licenseNumber: 'PT-2023-001',
+    specialization: ['musculoskeletal', 'sports', 'post-surgical'],
+    experience: 8,
+    certifications: ['Certified Orthopedic Manual Therapist', 'Sports Physical Therapy Specialist', 'Dry Needling Certified'],
+    availability: [
+      { id: '1', dayOfWeek: 1, startTime: '08:00', endTime: '17:00', isAvailable: true },
+      { id: '2', dayOfWeek: 2, startTime: '08:00', endTime: '17:00', isAvailable: true },
+      { id: '3', dayOfWeek: 3, startTime: '08:00', endTime: '17:00', isAvailable: true },
+      { id: '4', dayOfWeek: 4, startTime: '08:00', endTime: '17:00', isAvailable: true },
+      { id: '5', dayOfWeek: 5, startTime: '08:00', endTime: '17:00', isAvailable: true },
+    ],
+    avatar: '/avatars/sarah-johnson.jpg',
+    status: 'active',
+    hireDate: '2023-01-15',
+    hourlyRate: 120,
+    bio: 'Specialized in musculoskeletal rehabilitation with extensive experience in sports injuries and post-surgical recovery.'
+  },
+  {
+    id: '2',
+    name: 'Michael Davis',
+    email: 'michael.davis@teamworkhomecare.com',
+    phone: '+1-555-0112',
+    licenseNumber: 'PT-2023-002',
+    specialization: ['neurological', 'cardiovascular', 'respiratory'],
+    experience: 12,
+    certifications: ['Neurological Physical Therapy Specialist', 'Cardiopulmonary Physical Therapy', 'Vestibular Rehabilitation'],
+    availability: [
+      { id: '6', dayOfWeek: 1, startTime: '09:00', endTime: '18:00', isAvailable: true },
+      { id: '7', dayOfWeek: 2, startTime: '09:00', endTime: '18:00', isAvailable: true },
+      { id: '8', dayOfWeek: 3, startTime: '09:00', endTime: '18:00', isAvailable: true },
+      { id: '9', dayOfWeek: 4, startTime: '09:00', endTime: '18:00', isAvailable: true },
+      { id: '10', dayOfWeek: 5, startTime: '09:00', endTime: '18:00', isAvailable: true },
+    ],
+    avatar: '/avatars/michael-davis.jpg',
+    status: 'active',
+    hireDate: '2023-02-01',
+    hourlyRate: 135,
+    bio: 'Expert in neurological and cardiopulmonary rehabilitation with advanced training in vestibular therapy.'
+  },
+  {
+    id: '3',
+    name: 'Emily Rodriguez',
+    email: 'emily.rodriguez@teamworkhomecare.com',
+    phone: '+1-555-0113',
+    licenseNumber: 'PT-2023-003',
+    specialization: ['chronic-pain', 'geriatric', 'aquatic-therapy'],
+    experience: 6,
+    certifications: ['Pain Management Specialist', 'Geriatric Physical Therapy', 'Aquatic Therapy Certified'],
+    availability: [
+      { id: '11', dayOfWeek: 1, startTime: '07:00', endTime: '16:00', isAvailable: true },
+      { id: '12', dayOfWeek: 2, startTime: '07:00', endTime: '16:00', isAvailable: true },
+      { id: '13', dayOfWeek: 3, startTime: '07:00', endTime: '16:00', isAvailable: true },
+      { id: '14', dayOfWeek: 4, startTime: '07:00', endTime: '16:00', isAvailable: true },
+      { id: '15', dayOfWeek: 5, startTime: '07:00', endTime: '16:00', isAvailable: true },
+    ],
+    avatar: '/avatars/emily-rodriguez.jpg',
+    status: 'active',
+    hireDate: '2023-03-10',
+    hourlyRate: 110,
+    bio: 'Specialized in chronic pain management and geriatric care with expertise in aquatic therapy interventions.'
+  },
+  {
+    id: '4',
+    name: 'David Chen',
+    email: 'david.chen@teamworkhomecare.com',
+    phone: '+1-555-0114',
+    licenseNumber: 'PT-2023-004',
+    specialization: ['pediatric', 'developmental', 'sensory-integration'],
+    experience: 10,
+    certifications: ['Pediatric Physical Therapy Specialist', 'Developmental Therapy', 'Sensory Integration Certified'],
+    availability: [
+      { id: '16', dayOfWeek: 1, startTime: '08:30', endTime: '17:30', isAvailable: true },
+      { id: '17', dayOfWeek: 2, startTime: '08:30', endTime: '17:30', isAvailable: true },
+      { id: '18', dayOfWeek: 3, startTime: '08:30', endTime: '17:30', isAvailable: true },
+      { id: '19', dayOfWeek: 4, startTime: '08:30', endTime: '17:30', isAvailable: true },
+      { id: '20', dayOfWeek: 5, startTime: '08:30', endTime: '17:30', isAvailable: true },
+    ],
+    avatar: '/avatars/david-chen.jpg',
+    status: 'active',
+    hireDate: '2023-04-05',
+    hourlyRate: 125,
+    bio: 'Dedicated to pediatric physical therapy with specialized training in developmental delays and sensory integration.'
+  }
+];
