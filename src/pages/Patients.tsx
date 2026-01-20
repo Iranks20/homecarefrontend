@@ -2,66 +2,111 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Edit, Eye, Plus, Search, Trash2, User } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { Patient } from '../types';
+import { Patient, Service } from '../types';
 import AddEditPatientModal, { type PatientFormValues } from '../components/AddEditPatientModal';
 import patientService from '../services/patients';
 import { nurseService } from '../services/nurses';
 import { userService } from '../services/users';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
+import servicesService from '../services/services';
+import { useApi } from '../hooks/useApi';
 
 export default function Patients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [conditionFilter, setConditionFilter] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientsList, setPatientsList] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nurses, setNurses] = useState<{ id: string; name: string }[]>([]);
-  const [doctors, setDoctors] = useState<{ id: string; name: string; specialization?: string }[]>([]);
   const [specialists, setSpecialists] = useState<{ id: string; name: string; specialization?: string }[]>([]);
+  const [therapists, setTherapists] = useState<{ id: string; name: string; specialization?: string }[]>([]);
+  
+  // Get current user for role-based access control
+  const { user } = useAuth();
+  
+  // Get notifications hook - must be called unconditionally (hooks cannot be in try-catch)
+  // The NotificationProvider in App.tsx ensures this context is available
   const { addNotification } = useNotifications();
 
-  const nurseMap = useMemo(() => {
-    const map = new Map<string, string>();
-    nurses.forEach((nurse) => map.set(nurse.id, nurse.name));
-    return map;
-  }, [nurses]);
+  // Check if user can add patients (only admin and receptionist)
+  const canAddPatient = user?.role === 'admin' || user?.role === 'receptionist';
 
-  const doctorMap = useMemo(() => {
-    const map = new Map<string, string>();
-    doctors.forEach((doctor) => map.set(doctor.id, doctor.name));
+  // Load services for displaying patient services
+  const {
+    data: servicesData,
+    loading: loadingServices,
+  } = useApi(() => servicesService.getServices({ limit: 500 }), []);
+  
+  const servicesList = servicesData?.services ?? [];
+  
+  const serviceMap = useMemo(() => {
+    const map = new Map<string, Service>();
+    servicesList.forEach((service) => map.set(service.id, service));
     return map;
-  }, [doctors]);
+  }, [servicesList]);
 
-  const loadNurses = async () => {
+  const specialistMap = useMemo(() => {
+    const map = new Map<string, string>();
+    specialists.forEach((specialist) => map.set(specialist.id, specialist.name));
+    return map;
+  }, [specialists]);
+
+  const therapistMap = useMemo(() => {
+    const map = new Map<string, string>();
+    therapists.forEach((therapist) => map.set(therapist.id, therapist.name));
+    return map;
+  }, [therapists]);
+
+  const loadTherapists = async () => {
     try {
-      // Load nurses from User table (not Nurse table) since Patient.assignedNurseId references User
       const { users } = await userService.getMedicalStaff({
-        role: 'NURSE',
+        role: 'THERAPIST',
         limit: 500,
       });
-      setNurses(users.map((nurse) => ({ id: nurse.id, name: nurse.name })));
-    } catch (err) {
-      console.error('Failed to load nurses', err);
-    }
-  };
-
-  const loadDoctors = async () => {
-    try {
-      const { users } = await userService.getMedicalStaff({
-        role: 'DOCTOR',
-        limit: 500,
-      });
-      setDoctors(users.map((doctor) => ({ 
-        id: doctor.id, 
-        name: doctor.name,
-        specialization: doctor.doctorSpecialization
-      })));
-    } catch (err) {
-      console.error('Failed to load doctors', err);
+      setTherapists(users.map((therapist) => {
+        // Format specialization for display (e.g., PHYSIOTHERAPY -> Physiotherapy)
+        const formatSpecialization = (spec?: string | null) => {
+          if (!spec) return undefined;
+          return spec
+            .split('_')
+            .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+            .join(' ');
+        };
+        return { 
+          id: therapist.id, 
+          name: therapist.name,
+          specialization: formatSpecialization((therapist as any).therapistSpecialization)
+        };
+      }));
+    } catch (err: any) {
+      console.error('Failed to load therapists', err);
+      // If API fails, try to load all users and filter
+      try {
+        const { users: allUsers } = await userService.getUsers({
+          limit: 500,
+        });
+        const therapistUsers = allUsers.filter(u => u.role === 'therapist');
+        setTherapists(therapistUsers.map((therapist) => {
+          const formatSpecialization = (spec?: string | null) => {
+            if (!spec) return undefined;
+            return spec
+              .split('_')
+              .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+              .join(' ');
+          };
+          return { 
+            id: therapist.id, 
+            name: therapist.name,
+            specialization: formatSpecialization((therapist as any).therapistSpecialization)
+          };
+        }));
+      } catch (fallbackErr) {
+        console.error('Fallback load failed', fallbackErr);
+        setTherapists([]);
+      }
     }
   };
 
@@ -71,13 +116,47 @@ export default function Patients() {
         role: 'SPECIALIST',
         limit: 500,
       });
-      setSpecialists(users.map((specialist) => ({ 
-        id: specialist.id, 
-        name: specialist.name,
-        specialization: specialist.specialistType
-      })));
-    } catch (err) {
+      setSpecialists(users.map((specialist) => {
+        // Format specialization for display (e.g., NEUROLOGIST -> Neurologist)
+        const formatSpecialization = (spec?: string | null) => {
+          if (!spec) return undefined;
+          return spec
+            .split('_')
+            .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+            .join(' ');
+        };
+        return { 
+          id: specialist.id, 
+          name: specialist.name,
+          specialization: formatSpecialization((specialist as any).specialistSpecialization)
+        };
+      }));
+    } catch (err: any) {
       console.error('Failed to load specialists', err);
+      // If API fails, try to load all users and filter
+      try {
+        const { users: allUsers } = await userService.getUsers({
+          limit: 500,
+        });
+        const specialistUsers = allUsers.filter(u => u.role === 'specialist');
+        setSpecialists(specialistUsers.map((specialist) => {
+          const formatSpecialization = (spec?: string | null) => {
+            if (!spec) return undefined;
+            return spec
+              .split('_')
+              .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+              .join(' ');
+          };
+          return { 
+            id: specialist.id, 
+            name: specialist.name,
+            specialization: formatSpecialization((specialist as any).specialistSpecialization)
+          };
+        }));
+      } catch (fallbackErr) {
+        console.error('Fallback load failed', fallbackErr);
+        setSpecialists([]);
+      }
     }
   };
 
@@ -99,9 +178,8 @@ export default function Patients() {
   };
 
   useEffect(() => {
-    loadNurses();
-    loadDoctors();
     loadSpecialists();
+    loadTherapists();
   }, []);
 
   useEffect(() => {
@@ -115,51 +193,65 @@ export default function Patients() {
         ? nurseMap.get(patient.assignedNurseId)?.toLowerCase()
         : patient.assignedNurseName?.toLowerCase();
 
+      const specialistName = (patient as any).assignedSpecialistId
+        ? specialistMap.get((patient as any).assignedSpecialistId)?.toLowerCase()
+        : (patient as any).assignedSpecialistName?.toLowerCase();
+      
+      const therapistName = (patient as any).assignedTherapistId
+        ? therapistMap.get((patient as any).assignedTherapistId)?.toLowerCase()
+        : (patient as any).assignedTherapistName?.toLowerCase();
+
       const matchesSearch =
         patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.condition.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (nurseName?.includes(searchTerm.toLowerCase()) ?? false);
+        patient.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (specialistName?.includes(searchTerm.toLowerCase()) ?? false) ||
+        (therapistName?.includes(searchTerm.toLowerCase()) ?? false) ||
+        (getPatientServices(patient).some(service => 
+          service.name.toLowerCase().includes(searchTerm.toLowerCase())
+        ));
 
       const matchesStatus =
         statusFilter === 'all' || patient.status === statusFilter;
 
-      const matchesCondition =
-        conditionFilter === 'all' ||
-                           patient.condition.toLowerCase().includes(conditionFilter.toLowerCase());
-
-    return matchesSearch && matchesStatus && matchesCondition;
+      return matchesSearch && matchesStatus;
   });
-  }, [patientsList, searchTerm, statusFilter, conditionFilter, nurseMap]);
+  }, [patientsList, searchTerm, statusFilter, specialistMap, therapistMap, serviceMap]);
 
-  const conditions = useMemo(
-    () => [...new Set(patientsList.map((patient) => patient.condition))],
-    [patientsList]
-  );
+  const getPatientServices = (patient: Patient): Service[] => {
+    if (!patient.serviceIds || patient.serviceIds.length === 0) return [];
+    return patient.serviceIds
+      .map((serviceId) => serviceMap.get(serviceId))
+      .filter((service): service is Service => service !== undefined);
+  };
 
   const handleAddPatient = async (values: PatientFormValues) => {
     try {
       await patientService.createPatient(values);
       toast.success(`Patient ${values.name} has been created successfully`);
-      addNotification({
-        title: 'Patient created',
-        message: `${values.name} has been added.`,
-        type: 'success',
-        priority: 'medium',
-        userId: 'system',
-        category: 'system',
-      });
+      if (addNotification) {
+        addNotification({
+          title: 'Patient created',
+          message: `${values.name} has been added.`,
+          type: 'success',
+          priority: 'medium',
+          userId: 'system',
+          category: 'system',
+        });
+      }
       await loadPatients();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create patient';
       toast.error(errorMessage);
-      addNotification({
-        title: 'Unable to create patient',
-        message: errorMessage,
-        type: 'error',
-        priority: 'high',
-        userId: 'system',
-        category: 'system',
-      });
+      if (addNotification) {
+        addNotification({
+          title: 'Unable to create patient',
+          message: errorMessage,
+          type: 'error',
+          priority: 'high',
+          userId: 'system',
+          category: 'system',
+        });
+      }
       throw err;
     }
   };
@@ -210,29 +302,33 @@ export default function Patients() {
     try {
       await patientService.deletePatient(patientId);
       toast.success(patient ? `Patient ${patient.name} has been archived` : 'Patient archived successfully');
-      addNotification({
-        title: 'Patient archived',
-        message: patient
-          ? `${patient.name} has been marked as discharged.`
-          : 'Patient archived successfully.',
-        type: 'info',
-        priority: 'medium',
-        userId: 'system',
-        category: 'system',
-      });
+      if (addNotification) {
+        addNotification({
+          title: 'Patient archived',
+          message: patient
+            ? `${patient.name} has been marked as discharged.`
+            : 'Patient archived successfully.',
+          type: 'info',
+          priority: 'medium',
+          userId: 'system',
+          category: 'system',
+        });
+      }
       await loadPatients();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to archive patient';
       toast.error(errorMessage);
-      addNotification({
-        title: 'Archive failed',
-        message:
-          err instanceof Error ? err.message : 'Unable to archive patient.',
-        type: 'error',
-        priority: 'high',
-        userId: 'system',
-        category: 'system',
-      });
+      if (addNotification) {
+        addNotification({
+          title: 'Archive failed',
+          message:
+            err instanceof Error ? err.message : 'Unable to archive patient.',
+          type: 'error',
+          priority: 'high',
+          userId: 'system',
+          category: 'system',
+        });
+      }
     }
   };
 
@@ -250,15 +346,17 @@ export default function Patients() {
             Manage patient information and live care details.
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="btn-primary flex items-center"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Patient
-          </button>
-        </div>
+        {canAddPatient && (
+          <div className="mt-4 sm:mt-0">
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="btn-primary flex items-center"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Patient
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -288,18 +386,7 @@ export default function Patients() {
             </select>
           </div>
           <div>
-            <select
-              value={conditionFilter}
-              onChange={(e) => setConditionFilter(e.target.value)}
-              className="input-field"
-            >
-              <option value="all">All Conditions</option>
-              {conditions.map((condition) => (
-                <option key={condition} value={condition}>
-                  {condition}
-                </option>
-              ))}
-            </select>
+            {/* Condition filter removed - services column replaces condition */}
           </div>
         </div>
       </div>
@@ -313,13 +400,13 @@ export default function Patients() {
                   Patient
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Condition
+                  Services
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Assigned Doctor
+                  Assigned Specialist
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Assigned Nurse
+                  Assigned Therapist
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Admission Date
@@ -369,7 +456,7 @@ export default function Patients() {
                       <img
                         src={patient.avatar.startsWith('http') 
                           ? patient.avatar 
-                          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`}
+                          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`}
                         alt={patient.name}
                         className="h-10 w-10 rounded-full object-cover"
                       />
@@ -393,17 +480,39 @@ export default function Patients() {
                         </div>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {patient.condition}
-                    </div>
-                  </td>
+                    <td className="px-6 py-4">
+                      {loadingServices ? (
+                        <div className="text-sm text-gray-500">Loading...</div>
+                      ) : (() => {
+                        const patientServices = getPatientServices(patient);
+                        if (patientServices.length === 0) {
+                          return <div className="text-sm text-gray-400">No services</div>;
+                        }
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {patientServices.slice(0, 2).map((service) => (
+                              <span
+                                key={service.id}
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                              >
+                                {service.name}
+                              </span>
+                            ))}
+                            {patientServices.length > 2 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                +{patientServices.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="whitespace-nowrap px-6 py-4">
                     <div className="flex items-center">
                         <User className="mr-2 h-4 w-4 text-gray-400" />
                         <div className="text-sm text-gray-900">
-                          {patient.assignedDoctorId
-                            ? doctorMap.get(patient.assignedDoctorId) ?? patient.assignedDoctorName ?? 'Unassigned'
+                          {(patient as any).assignedSpecialistId
+                            ? specialistMap.get((patient as any).assignedSpecialistId) ?? (patient as any).assignedSpecialistName ?? 'Unassigned'
                             : 'Unassigned'}
                         </div>
                     </div>
@@ -412,8 +521,8 @@ export default function Patients() {
                     <div className="flex items-center">
                         <User className="mr-2 h-4 w-4 text-gray-400" />
                         <div className="text-sm text-gray-900">
-                          {patient.assignedNurseId
-                            ? nurseMap.get(patient.assignedNurseId) ?? patient.assignedNurseName ?? 'Unassigned'
+                          {(patient as any).assignedTherapistId
+                            ? therapistMap.get((patient as any).assignedTherapistId) ?? (patient as any).assignedTherapistName ?? 'Unassigned'
                             : 'Unassigned'}
                         </div>
                     </div>
@@ -442,30 +551,32 @@ export default function Patients() {
                     </span>
                   </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                    <div className="flex items-center space-x-3">
-                      <Link
-                        to={`/patients/${patient.id}`}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                          <Eye className="mr-1 inline h-4 w-4" />
-                        View
-                      </Link>
-                      <button 
-                        onClick={() => openEditModal(patient)}
-                        className="text-secondary-600 hover:text-secondary-900"
-                      >
-                          <Edit className="mr-1 inline h-4 w-4" />
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDeletePatient(patient.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                          <Trash2 className="mr-1 inline h-4 w-4" />
+                      <div className="flex items-center space-x-3">
+                        <Link
+                          to={`/patients/${patient.id}`}
+                          className="text-primary-600 hover:text-primary-900 inline-flex items-center"
+                        >
+                          <Eye className="mr-1 h-4 w-4" />
+                          View
+                        </Link>
+                        <button 
+                          onClick={() => openEditModal(patient)}
+                          className="text-secondary-600 hover:text-secondary-900 inline-flex items-center"
+                          type="button"
+                        >
+                          <Edit className="mr-1 h-4 w-4" />
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDeletePatient(patient.id)}
+                          className="text-red-600 hover:text-red-900 inline-flex items-center"
+                          type="button"
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" />
                           Archive
-                      </button>
-                    </div>
-                  </td>
+                        </button>
+                      </div>
+                    </td>
                 </tr>
                 ))
               )}
@@ -479,9 +590,8 @@ export default function Patients() {
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleAddPatient}
         mode="add"
-        nurses={nurses}
-        doctors={doctors}
         specialists={specialists}
+        therapists={therapists}
       />
 
       <AddEditPatientModal
@@ -493,9 +603,8 @@ export default function Patients() {
         onSave={handleEditPatient}
         patient={selectedPatient ?? undefined}
         mode="edit"
-        nurses={nurses}
-        doctors={doctors}
         specialists={specialists}
+        therapists={therapists}
       />
     </div>
   );

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { User, Phone, MapPin, FileText, Save, Loader2 } from 'lucide-react';
-import { useApiMutation } from '../hooks/useApi';
+import { useApiMutation, useApi } from '../hooks/useApi';
 import { patientService, type PatientRegistrationData } from '../services/patients';
 import { useNotifications } from '../contexts/NotificationContext';
+import servicesService from '../services/services';
 import type { Patient } from '../types';
 
 export default function PatientRegistration() {
@@ -18,12 +19,12 @@ export default function PatientRegistration() {
     zipCode: '',
     emergencyContact: '',
     emergencyPhone: '',
-    medicalHistory: '',
-    currentMedications: '',
     allergies: '',
+    paymentType: 'CASH' as 'CASH' | 'INSURANCE',
     insuranceProvider: '',
     insuranceNumber: '',
-    referralSource: ''
+    referralSource: '',
+    serviceIds: [] as string[]
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,10 +35,36 @@ export default function PatientRegistration() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      // Clear insurance fields if payment type changes to CASH
+      if (name === 'paymentType' && value === 'CASH') {
+        newData.insuranceProvider = '';
+        newData.insuranceNumber = '';
+      }
+      return newData;
+    });
+  };
+
+  const handleServiceToggle = (serviceId: string) => {
+    setFormData(prev => {
+      const currentIds = prev.serviceIds || [];
+      const isSelected = currentIds.includes(serviceId);
+      return {
+        ...prev,
+        serviceIds: isSelected
+          ? currentIds.filter(id => id !== serviceId)
+          : [...currentIds, serviceId]
+      };
+    });
+  };
+
+  const getTotalAmount = () => {
+    if (!formData.serviceIds || formData.serviceIds.length === 0) return 0;
+    return formData.serviceIds.reduce((total, serviceId) => {
+      const service = servicesList.find(s => s.id === serviceId);
+      return total + (service?.price || 0);
+    }, 0);
   };
 
   const buildPatientPayload = (): PatientRegistrationData => {
@@ -55,15 +82,15 @@ export default function PatientRegistration() {
       city: formData.city,
       state: formData.state,
       zipCode: formData.zipCode,
-      condition: formData.medicalHistory || 'Evaluation pending',
+      condition: 'Evaluation pending',
       emergencyContact: formData.emergencyContact,
       emergencyPhone: formData.emergencyPhone,
-      medicalHistory: formData.medicalHistory,
-      currentMedications: formData.currentMedications,
-      allergies: formData.allergies,
-      insuranceProvider: formData.insuranceProvider,
-      insuranceNumber: formData.insuranceNumber,
+      allergies: formData.allergies || undefined,
+      paymentType: formData.paymentType,
+      insuranceProvider: formData.paymentType === 'INSURANCE' ? formData.insuranceProvider : undefined,
+      insuranceNumber: formData.paymentType === 'INSURANCE' ? formData.insuranceNumber : undefined,
       referralSource: formData.referralSource,
+      serviceIds: formData.serviceIds,
       status: 'pending',
       metadata: {
         referralSource: formData.referralSource,
@@ -118,12 +145,12 @@ export default function PatientRegistration() {
       zipCode: '',
       emergencyContact: '',
       emergencyPhone: '',
-      medicalHistory: '',
-      currentMedications: '',
       allergies: '',
+      paymentType: 'CASH' as 'CASH' | 'INSURANCE',
       insuranceProvider: '',
       insuranceNumber: '',
-      referralSource: ''
+      referralSource: '',
+      serviceIds: []
     });
     setIsSubmitting(false);
   };
@@ -327,17 +354,17 @@ export default function PatientRegistration() {
           </div>
         </div>
 
-        {/* Emergency Contact */}
+        {/* Next of Kin Contact */}
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
             <Phone className="h-5 w-5 mr-2" />
-            Emergency Contact
+            Next of Kin Contact
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Emergency Contact Name *
+                Next of Kin Name *
               </label>
               <input
                 type="text"
@@ -346,13 +373,13 @@ export default function PatientRegistration() {
                 onChange={handleInputChange}
                 required
                 className="input-field"
-                placeholder="Enter emergency contact name"
+                placeholder="Enter next of kin name"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Emergency Contact Phone *
+                Next of Kin Phone *
               </label>
               <input
                 type="tel"
@@ -361,7 +388,7 @@ export default function PatientRegistration() {
                 onChange={handleInputChange}
                 required
                 className="input-field"
-                placeholder="Enter emergency contact phone"
+                placeholder="Enter next of kin phone"
               />
             </div>
           </div>
@@ -377,32 +404,6 @@ export default function PatientRegistration() {
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Medical History
-              </label>
-              <textarea
-                name="medicalHistory"
-                value={formData.medicalHistory}
-                onChange={handleInputChange}
-                className="input-field h-24 resize-none"
-                placeholder="Enter relevant medical history"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Current Medications
-              </label>
-              <textarea
-                name="currentMedications"
-                value={formData.currentMedications}
-                onChange={handleInputChange}
-                className="input-field h-24 resize-none"
-                placeholder="List current medications and dosages"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Allergies
               </label>
               <textarea
@@ -416,41 +417,63 @@ export default function PatientRegistration() {
           </div>
         </div>
 
-        {/* Insurance Information */}
+        {/* Payment & Insurance Information */}
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
             <FileText className="h-5 w-5 mr-2" />
-            Insurance Information
+            Payment & Insurance Information
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Insurance Provider
+                Payment Type <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                name="insuranceProvider"
-                value={formData.insuranceProvider}
+              <select
+                name="paymentType"
+                value={formData.paymentType}
                 onChange={handleInputChange}
                 className="input-field"
-                placeholder="Enter insurance provider"
-              />
+                required
+              >
+                <option value="CASH">Cash</option>
+                <option value="INSURANCE">Insurance</option>
+              </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Insurance Number
-              </label>
-              <input
-                type="text"
-                name="insuranceNumber"
-                value={formData.insuranceNumber}
-                onChange={handleInputChange}
-                className="input-field"
-                placeholder="Enter insurance number"
-              />
-            </div>
+            {formData.paymentType === 'INSURANCE' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Insurance Provider <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="insuranceProvider"
+                    value={formData.insuranceProvider}
+                    onChange={handleInputChange}
+                    className="input-field"
+                    placeholder="Enter insurance provider"
+                    required={formData.paymentType === 'INSURANCE'}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Insurance Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="insuranceNumber"
+                    value={formData.insuranceNumber}
+                    onChange={handleInputChange}
+                    className="input-field"
+                    placeholder="Enter insurance number"
+                    required={formData.paymentType === 'INSURANCE'}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -471,6 +494,90 @@ export default function PatientRegistration() {
               </select>
             </div>
           </div>
+        </div>
+
+        {/* Services Selection */}
+        <div className="card">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2 flex items-center">
+              <FileText className="h-5 w-5 mr-2 text-blue-600" />
+              Service Selection
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Select one or more services for this patient. Invoices will be created automatically for selected services.
+            </p>
+          </div>
+
+          {loadingServices ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">Loading services...</p>
+            </div>
+          ) : servicesList && servicesList.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {servicesList.map((service) => {
+                  const isSelected = formData.serviceIds?.includes(service.id) || false;
+                  return (
+                    <div
+                      key={service.id}
+                      onClick={() => handleServiceToggle(service.id)}
+                      className={`
+                        relative border-2 rounded-lg p-4 cursor-pointer transition-all duration-200
+                        ${isSelected
+                          ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200'
+                          : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
+                        }
+                      `}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleServiceToggle(service.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <h3 className="text-sm font-semibold text-gray-900 truncate">
+                              {service.name}
+                            </h3>
+                          </div>
+                          {service.category && (
+                            <p className="text-xs text-gray-500 mb-2 capitalize">
+                              {service.category.toLowerCase().replace('_', ' ')}
+                            </p>
+                          )}
+                          {service.description && (
+                            <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                              {service.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="absolute top-2 right-2">
+                          <div className="h-6 w-6 bg-blue-500 rounded-full flex items-center justify-center">
+                            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+            </>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm font-medium text-gray-700">No services available</p>
+              <p className="text-xs text-gray-500 mt-1">Please add services to the system first</p>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end">

@@ -45,10 +45,8 @@ const getNavigationForRole = (role: string) => {
     ...baseNavigation,
     { name: 'Patients', href: '/patients', icon: Users },
     { name: 'Appointments', href: '/scheduling?view=appointments', icon: Calendar },
-    { name: 'Doctors', href: '/doctors', icon: Stethoscope },
     { name: 'Specialists', href: '/specialists', icon: Activity },
-    { name: 'Nurses', href: '/nurses', icon: Heart },
-    { name: 'Billing', href: '/billing', icon: CreditCard },
+    { name: 'Therapists', href: '/therapists', icon: Stethoscope },
     // TODO: Re-enable Communication feature in the future
     // { name: 'Communication', href: '/communication', icon: MessageSquare },
   ];
@@ -75,26 +73,19 @@ const getNavigationForRole = (role: string) => {
     // { name: 'Communication', href: '/communication', icon: MessageSquare },
   ];
 
-  // Nurse navigation - home care management
+  // Nurse navigation - vitals recording and patient management
   const nurseNavigation = [
     ...baseNavigation,
-    { name: 'My Schedule', href: '/my-schedule', icon: Calendar },
-    { name: 'My Patients', href: '/patients', icon: UserCheck },
-    { name: 'Home Visits', href: '/patients', icon: Heart },
-    { name: 'Clinical Documentation', href: '/health-records', icon: FileText },
-    { name: 'Phone Reminders', href: '/phone-reminders', icon: Phone },
-    { name: 'Training & Exams', href: '/training', icon: BookOpen },
-    // TODO: Re-enable Communication feature in the future
-    // { name: 'Communication', href: '/communication', icon: MessageSquare },
+    { name: 'Patients', href: '/patients', icon: UserCheck },
   ];
 
-  // Admin navigation - full system access
   const adminNavigation = [
     ...baseNavigation,
     { name: 'Patients', href: '/patients', icon: UserCheck },
-    { name: 'Doctors', href: '/doctors', icon: Stethoscope },
     { name: 'Specialists', href: '/specialists', icon: Activity },
+    { name: 'Therapists', href: '/therapists', icon: Stethoscope },
     { name: 'Nurses', href: '/nurses', icon: Heart },
+    { name: 'Billers', href: '/billers', icon: CreditCard },
     { name: 'Scheduling', href: '/scheduling', icon: Calendar },
     { name: 'Services', href: '/services', icon: Package },
     { name: 'Clinical Documentation', href: '/health-records', icon: FileText },
@@ -102,6 +93,13 @@ const getNavigationForRole = (role: string) => {
     { name: 'Reports & Analytics', href: '/reports', icon: BarChart3 },
     { name: 'Training & Exams', href: '/training', icon: BookOpen },
     { name: 'Settings', href: '/settings', icon: Settings },
+  ];
+
+  // Biller navigation - finance and billing focused
+  const billerNavigation = [
+    ...baseNavigation,
+    { name: 'Services', href: '/services', icon: Package },
+    { name: 'Billing', href: '/billing', icon: CreditCard },
   ];
 
   switch (role) {
@@ -115,6 +113,8 @@ const getNavigationForRole = (role: string) => {
       return nurseNavigation;
     case 'admin':
       return adminNavigation;
+    case 'biller':
+      return billerNavigation;
     default:
       return baseNavigation;
   }

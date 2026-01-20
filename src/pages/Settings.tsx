@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { User, Bell, Shield, Database, Loader2 } from 'lucide-react';
+import { User, Bell, Shield, Database, Loader2, GraduationCap, Plus, Edit, Trash2, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import { settingsService } from '../services/settings';
+import { specializationService, type Specialization, type CreateSpecializationData } from '../services/specializations';
 import { NotificationSettings, SystemSettings } from '../types';
+import { toast } from 'react-toastify';
 
 interface ProfileFormState {
   firstName: string;
@@ -54,7 +56,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
 };
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security' | 'system'>(
+  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security' | 'system' | 'specializations'>(
     'profile'
   );
 
@@ -356,7 +358,8 @@ export default function Settings() {
               { key: 'notifications', label: 'Notifications', icon: Bell },
               { key: 'security', label: 'Security', icon: Shield },
               { key: 'system', label: 'System', icon: Database },
-            ].map((tab) => (
+              { key: 'specializations', label: 'Specializations', icon: GraduationCap, adminOnly: true },
+            ].filter(tab => !tab.adminOnly || user?.role === 'admin').map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
@@ -772,8 +775,326 @@ export default function Settings() {
               )}
             </div>
           )}
+
+          {activeTab === 'specializations' && user?.role === 'admin' && <SpecializationsTab />}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SpecializationsTab() {
+  const [typeFilter, setTypeFilter] = useState<'SPECIALIST' | 'THERAPIST' | 'all'>('all');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingSpecialization, setEditingSpecialization] = useState<Specialization | null>(null);
+  const [formData, setFormData] = useState<CreateSpecializationData>({
+    name: '',
+    type: 'SPECIALIST',
+    description: '',
+    isActive: true,
+    displayOrder: 0,
+  });
+
+  const {
+    data: specializations,
+    loading,
+    error,
+    refetch,
+  } = useApi(
+    () => specializationService.getSpecializations({
+      type: typeFilter !== 'all' ? typeFilter : undefined,
+      includeInactive: true,
+    }),
+    [typeFilter]
+  );
+
+  const createMutation = useApiMutation(specializationService.createSpecialization.bind(specializationService));
+  const updateMutation = useApiMutation(
+    ({ id, data }: { id: string; data: Partial<CreateSpecializationData> }) =>
+      specializationService.updateSpecialization(id, data)
+  );
+  const deleteMutation = useApiMutation(specializationService.deleteSpecialization.bind(specializationService));
+
+  const filteredSpecializations = useMemo(() => {
+    if (!specializations) return [];
+    return typeFilter === 'all'
+      ? specializations
+      : specializations.filter((s) => s.type === typeFilter);
+  }, [specializations, typeFilter]);
+
+  const handleAdd = () => {
+    setFormData({
+      name: '',
+      type: 'SPECIALIST',
+      description: '',
+      isActive: true,
+      displayOrder: 0,
+    });
+    setEditingSpecialization(null);
+    setIsAddModalOpen(true);
+  };
+
+  const handleEdit = (spec: Specialization) => {
+    setFormData({
+      name: spec.name,
+      type: spec.type,
+      description: spec.description || '',
+      isActive: spec.isActive,
+      displayOrder: spec.displayOrder,
+    });
+    setEditingSpecialization(spec);
+    setIsAddModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editingSpecialization) {
+        await updateMutation.mutate({
+          id: editingSpecialization.id,
+          data: formData,
+        });
+        toast.success('Specialization updated successfully');
+      } else {
+        await createMutation.mutate(formData);
+        toast.success('Specialization created successfully');
+      }
+      setIsAddModalOpen(false);
+      setEditingSpecialization(null);
+      await refetch();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to save specialization');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this specialization?')) return;
+    try {
+      await deleteMutation.mutate(id);
+      toast.success('Specialization deleted successfully');
+      await refetch();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to delete specialization');
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">Specializations Management</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Manage specializations for Specialists and Therapists
+          </p>
+        </div>
+        <button onClick={handleAdd} className="btn-primary inline-flex items-center">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Specialization
+        </button>
+      </div>
+
+      <div className="mb-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTypeFilter('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              typeFilter === 'all'
+                ? 'bg-primary-100 text-primary-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setTypeFilter('SPECIALIST')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              typeFilter === 'SPECIALIST'
+                ? 'bg-primary-100 text-primary-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Specialists
+          </button>
+          <button
+            onClick={() => setTypeFilter('THERAPIST')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              typeFilter === 'THERAPIST'
+                ? 'bg-primary-100 text-primary-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Therapists
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-8 text-gray-500">
+          <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Loading specializations...
+        </div>
+      ) : error ? (
+        <div className="p-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md">
+          Failed to load specializations
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredSpecializations.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No specializations found. Click "Add Specialization" to create one.
+            </div>
+          ) : (
+            filteredSpecializations.map((spec) => (
+              <div
+                key={spec.id}
+                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-medium text-gray-900">{spec.name}</h3>
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded ${
+                        spec.type === 'SPECIALIST'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}
+                    >
+                      {spec.type}
+                    </span>
+                    {!spec.isActive && (
+                      <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  {spec.description && (
+                    <p className="text-sm text-gray-600 mt-1">{spec.description}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">Order: {spec.displayOrder}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEdit(spec)}
+                    className="p-2 text-secondary-600 hover:bg-secondary-50 rounded"
+                    title="Edit"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(spec.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingSpecialization ? 'Edit Specialization' : 'Add Specialization'}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setEditingSpecialization(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="input-field"
+                  placeholder="e.g., Physiotherapy"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Type *</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'SPECIALIST' | 'THERAPIST' })}
+                  className="input-field"
+                  required
+                >
+                  <option value="SPECIALIST">Specialist</option>
+                  <option value="THERAPIST">Therapist</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="input-field"
+                  rows={3}
+                  placeholder="Optional description"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+                  <input
+                    type="number"
+                    value={formData.displayOrder}
+                    onChange={(e) => setFormData({ ...formData, displayOrder: Number(e.target.value) })}
+                    className="input-field"
+                    min="0"
+                  />
+                </div>
+                <div className="flex items-center pt-6">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.isActive}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Active</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setEditingSpecialization(null);
+                  }}
+                  className="btn-outline"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="btn-primary"
+                  disabled={!formData.name || createMutation.loading || updateMutation.loading}
+                >
+                  {createMutation.loading || updateMutation.loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 inline animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

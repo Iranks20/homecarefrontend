@@ -311,7 +311,7 @@ export default function Doctors() {
                           <img
                             src={doctor.avatar.startsWith('http') 
                               ? doctor.avatar 
-                              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${doctor.avatar.startsWith('/') ? doctor.avatar : '/' + doctor.avatar}`}
+                              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${doctor.avatar.startsWith('/') ? doctor.avatar : '/' + doctor.avatar}`}
                             alt={doctor.name}
                             className="h-10 w-10 rounded-full object-cover"
                           />

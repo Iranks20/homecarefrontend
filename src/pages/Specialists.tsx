@@ -3,6 +3,7 @@ import { Search, Filter, Plus, Eye, Edit, Phone, Mail, Clock, Star, Award, Trash
 import { toast } from 'react-toastify';
 import { Specialist } from '../types';
 import AddEditSpecialistModal from '../components/AddEditSpecialistModal';
+import ViewSpecialistModal from '../components/ViewSpecialistModal';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import { specialistService } from '../services/specialists';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -17,6 +18,7 @@ export default function Specialists() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedSpecialist, setSelectedSpecialist] = useState<Specialist | null>(null);
   const { addNotification } = useNotifications();
 
@@ -146,6 +148,11 @@ export default function Specialists() {
   const openEditModal = (specialist: Specialist) => {
     setSelectedSpecialist(specialist);
     setIsEditModalOpen(true);
+  };
+
+  const openViewModal = (specialist: Specialist) => {
+    setSelectedSpecialist(specialist);
+    setIsViewModalOpen(true);
   };
 
   const getSpecializationColor = (specialization: string) => {
@@ -328,7 +335,7 @@ export default function Specialists() {
                           <img
                             src={specialist.avatar.startsWith('http') 
                               ? specialist.avatar 
-                              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${specialist.avatar.startsWith('/') ? specialist.avatar : '/' + specialist.avatar}`}
+                              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${specialist.avatar.startsWith('/') ? specialist.avatar : '/' + specialist.avatar}`}
                             alt={specialist.name}
                             className="h-10 w-10 rounded-full object-cover"
                           />
@@ -405,9 +412,7 @@ export default function Specialists() {
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
                       <div className="flex items-center space-x-3">
                         <button 
-                          onClick={() => {
-                            alert(`Specialist Details:\n\nName: ${specialist.name}\nEmail: ${specialist.email}\nPhone: ${specialist.phone || 'N/A'}\nSpecialization: ${formatSpecialization(specialist.specialization)}\nExperience: ${specialist.experience} years\nHourly Rate: $${specialist.hourlyRate}/hr\nLicense: ${specialist.licenseNumber}\nStatus: ${specialist.status}\nHire Date: ${new Date(specialist.hireDate).toLocaleDateString()}\nAvailability: ${getAvailabilityText(specialist.availability)}`);
-                          }}
+                          onClick={() => openViewModal(specialist)}
                           className="text-primary-600 hover:text-primary-900"
                           title="View specialist details"
                         >
@@ -451,12 +456,6 @@ export default function Specialists() {
           <div className="text-sm text-gray-600">Active Specialists</div>
         </div>
         <div className="card text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {specialistsList.filter((s) => s.specialization === 'medical-doctor').length}
-          </div>
-          <div className="text-sm text-gray-600">Medical Doctors</div>
-        </div>
-        <div className="card text-center">
           <div className="text-2xl font-bold text-blue-600">
             {specialistsList.filter((s) => s.specialization === 'clinical-psychologist').length}
           </div>
@@ -488,6 +487,16 @@ export default function Specialists() {
         onSave={handleEditSpecialist}
         specialist={selectedSpecialist}
         mode="edit"
+      />
+
+      {/* View Specialist Modal */}
+      <ViewSpecialistModal
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedSpecialist(null);
+        }}
+        specialist={selectedSpecialist}
       />
     </div>
   );

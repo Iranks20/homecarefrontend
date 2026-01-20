@@ -3,10 +3,12 @@ import { X, Plus, Trash2, Upload, Image as ImageIcon, Loader2 } from 'lucide-rea
 import { Specialist } from '../types';
 import { apiService } from '../services/api';
 import { API_ENDPOINTS } from '../config/api';
+import { specializationService, type Specialization } from '../services/specializations';
 
 interface SpecialistFormValues {
   name: string;
   email: string;
+  password: string;
   phone: string;
   licenseNumber: string;
   specialization: Specialist['specialization'];
@@ -27,15 +29,7 @@ interface AddEditSpecialistModalProps {
   mode: 'add' | 'edit';
 }
 
-const SPECIALIZATION_OPTIONS: Specialist['specialization'][] = [
-  'clinical-psychologist',
-  'nutritionist',
-  'critical-care-nurse',
-  'medical-doctor',
-  'geriatrician',
-  'palliative-care-specialist',
-  'senior-midwife',
-];
+// Specializations will be loaded from API
 
 export default function AddEditSpecialistModal({
   isOpen,
@@ -47,6 +41,7 @@ export default function AddEditSpecialistModal({
   const [formData, setFormData] = useState<SpecialistFormValues>({
     name: '',
     email: '',
+    password: '',
     phone: '',
     licenseNumber: '',
     specialization: 'clinical-psychologist',
@@ -64,8 +59,28 @@ export default function AddEditSpecialistModal({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [specializations, setSpecializations] = useState<Specialization[]>([]);
+  const [loadingSpecializations, setLoadingSpecializations] = useState(true);
 
   const isEdit = mode === 'edit' && specialist;
+
+  // Load specializations from API
+  useEffect(() => {
+    const loadSpecializations = async () => {
+      try {
+        setLoadingSpecializations(true);
+        const data = await specializationService.getSpecializations({ type: 'SPECIALIST' });
+        setSpecializations(data);
+      } catch (err) {
+        console.error('Failed to load specializations:', err);
+      } finally {
+        setLoadingSpecializations(false);
+      }
+    };
+    if (isOpen) {
+      loadSpecializations();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -82,6 +97,7 @@ export default function AddEditSpecialistModal({
       setFormData({
         name: specialist.name,
         email: specialist.email,
+        password: '', // Don't show password when editing
         phone: specialist.phone,
         licenseNumber: specialist.licenseNumber,
         specialization: specialist.specialization,
@@ -99,7 +115,7 @@ export default function AddEditSpecialistModal({
       if (specialist.avatar) {
         const avatarUrl = specialist.avatar.startsWith('http') 
           ? specialist.avatar 
-          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${specialist.avatar.startsWith('/') ? specialist.avatar : '/' + specialist.avatar}`;
+          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${specialist.avatar.startsWith('/') ? specialist.avatar : '/' + specialist.avatar}`;
         setAvatarPreview(avatarUrl);
       } else {
         setAvatarPreview(null);
@@ -108,6 +124,7 @@ export default function AddEditSpecialistModal({
       setFormData({
         name: '',
         email: '',
+        password: '',
         phone: '',
         licenseNumber: '',
         specialization: 'clinical-psychologist',
@@ -203,7 +220,7 @@ export default function AddEditSpecialistModal({
           }));
           
           // Update preview with full URL for display
-          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007';
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007';
           const previewUrl = `${baseUrl}${avatarPath}`;
           setAvatarPreview(previewUrl);
         }
@@ -231,6 +248,20 @@ export default function AddEditSpecialistModal({
     setIsSubmitting(true);
     setError(null);
 
+    // Validate password for new specialists
+    if (mode === 'add' && (!formData.password || formData.password.length < 8)) {
+      setError('Password must be at least 8 characters long.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate password if provided during edit
+    if (mode === 'edit' && formData.password && formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       await onSave({
         ...formData,
@@ -246,7 +277,8 @@ export default function AddEditSpecialistModal({
     }
   };
 
-  const formatSpecialization = (value: Specialist['specialization']) =>
+  // formatSpecialization removed - using names directly from API
+  const formatSpecialization = (value: string) =>
     value
       .split('-')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -309,7 +341,47 @@ export default function AddEditSpecialistModal({
                   placeholder="Enter email address"
                   disabled={isSubmitting}
                 />
+                <p className="text-xs text-gray-500 mt-1">This will be used for login</p>
               </div>
+
+              {mode === 'add' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    required={mode === 'add'}
+                    minLength={8}
+                    className="input-field"
+                    placeholder="Minimum 8 characters"
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Provide this to the specialist for login</p>
+                </div>
+              )}
+
+              {mode === 'edit' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password (optional)
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    minLength={8}
+                    className="input-field"
+                    placeholder="Leave blank to keep current password"
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Only fill if you want to change the password</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -353,13 +425,18 @@ export default function AddEditSpecialistModal({
                   onChange={handleInputChange}
                   required
                   className="input-field"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loadingSpecializations}
                 >
-                  {SPECIALIZATION_OPTIONS.map((spec) => (
-                    <option key={spec} value={spec}>
-                      {formatSpecialization(spec)}
-                    </option>
-                  ))}
+                  <option value="">Select specialization</option>
+                  {loadingSpecializations ? (
+                    <option disabled>Loading specializations...</option>
+                  ) : (
+                    specializations.map((spec) => (
+                      <option key={spec.id} value={spec.name.toUpperCase().replace(/\s+/g, '_')}>
+                        {spec.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>

@@ -1,18 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, X, Check, AlertCircle, Info, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNotifications } from '../contexts/NotificationContext';
+import { notificationService } from '../services/notifications';
 
 export default function NotificationCenter() {
   const { notifications, removeNotification, markAsRead, markAllAsRead, unreadCount, isLoading } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Refresh notifications when notification center is opened
+  useEffect(() => {
+    if (isOpen) {
+      setIsRefreshing(true);
+      notificationService.getNotifications({ limit: 50 })
+        .then((response) => {
+          // Handle response structure
+          let notificationsData: any[] = [];
+          if (Array.isArray(response)) {
+            notificationsData = response;
+          } else if (Array.isArray(response.data)) {
+            notificationsData = response.data;
+          } else if (response && typeof response === 'object' && Array.isArray(response.data)) {
+            notificationsData = response.data;
+          }
+          // The context will handle the update via its own fetch
+        })
+        .catch((error) => {
+          console.error('Failed to refresh notifications', error);
+        })
+        .finally(() => {
+          setIsRefreshing(false);
+        });
+    }
+  }, [isOpen]);
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
+    const normalizedType = String(type || 'info').toLowerCase();
+    switch (normalizedType) {
       case 'success':
+      case 'SUCCESS':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'error':
+      case 'ERROR':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
       case 'warning':
+      case 'WARNING':
         return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
       default:
         return <Info className="h-5 w-5 text-blue-500" />;
@@ -20,12 +52,16 @@ export default function NotificationCenter() {
   };
 
   const getNotificationColor = (type: string) => {
-    switch (type) {
+    const normalizedType = String(type || 'info').toLowerCase();
+    switch (normalizedType) {
       case 'success':
+      case 'SUCCESS':
         return 'border-l-green-500 bg-green-50';
       case 'error':
+      case 'ERROR':
         return 'border-l-red-500 bg-red-50';
       case 'warning':
+      case 'WARNING':
         return 'border-l-yellow-500 bg-yellow-50';
       default:
         return 'border-l-blue-500 bg-blue-50';
@@ -121,11 +157,12 @@ export default function NotificationCenter() {
                             </p>
                             <div className="flex items-center space-x-2">
                               <span className="text-xs text-gray-500">
-                                {formatTime(notification.date)}
+                                {formatTime(notification.date || notification.createdAt || new Date().toISOString())}
                               </span>
                               <button
                                 onClick={() => removeNotification(notification.id)}
                                 className="text-gray-400 hover:text-gray-600"
+                                title="Delete notification"
                               >
                                 <X className="h-4 w-4" />
                               </button>
@@ -138,14 +175,21 @@ export default function NotificationCenter() {
                           >
                             {notification.message}
                           </p>
-                          {!notification.read && (
-                            <button
-                              onClick={() => markAsRead(notification.id)}
-                              className="text-xs text-blue-600 hover:text-blue-800 mt-2"
-                            >
-                              Mark as read
-                            </button>
-                          )}
+                          <div className="flex items-center justify-between mt-2">
+                            {notification.category && (
+                              <span className="text-xs text-gray-400 capitalize">
+                                {notification.category.toLowerCase().replace('_', ' ')}
+                              </span>
+                            )}
+                            {!notification.read && (
+                              <button
+                                onClick={() => markAsRead(notification.id)}
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                              >
+                                Mark as read
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

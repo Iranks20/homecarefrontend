@@ -17,9 +17,9 @@ export interface PatientRegistrationData {
   dateOfBirth: string;
   address: string;
   condition: string;
-  assignedNurseId?: string;
-  assignedDoctorId?: string;
-  referredSpecialistId?: string;
+  assignedSpecialistId?: string; // Receptionist assigns to either Specialist OR Therapist
+  assignedTherapistId?: string;   // Receptionist assigns to either Specialist OR Therapist
+  serviceIds?: string[]; // Array of service IDs for billing
   city?: string;
   state?: string;
   zipCode?: string;
@@ -28,6 +28,7 @@ export interface PatientRegistrationData {
   medicalHistory?: string;
   currentMedications?: string;
   allergies?: string;
+  paymentType?: 'CASH' | 'INSURANCE';
   insuranceProvider?: string;
   insuranceNumber?: string;
   referralSource?: string;
@@ -41,9 +42,10 @@ type PatientApi = Omit<Patient, 'status' | 'medicalHistory' | 'medicalHistoryTex
   medicalHistory?: MedicalRecord[] | null;
   medicalHistoryNotes?: string | null; // Backend field name
   progress?: ProgressRecord[] | null;
-  assignedDoctor?: { id: string; name: string; email: string } | null;
-  assignedNurse?: { id: string; name: string; email: string } | null;
-  referredSpecialist?: { id: string; name: string; email: string } | null;
+  assignedSpecialist?: { id: string; name: string; email: string } | null;
+  assignedTherapist?: { id: string; name: string; email: string } | null;
+  assignedSpecialistId?: string;
+  assignedTherapistId?: string;
 };
 
 const PATIENT_STATUS_MAP: Record<string, Patient['status']> = {
@@ -71,12 +73,14 @@ function normalizePatient(patient: PatientApi): Patient {
     medicalHistory: medicalHistoryRecords, // Keep the relation array
     medicalHistoryText: medicalHistoryText, // Add text field
     progress: patient.progress ?? [],
-    assignedDoctorId: patient.assignedDoctor?.id ?? patient.assignedDoctorId,
-    assignedDoctorName: patient.assignedDoctor?.name,
-    assignedNurseId: patient.assignedNurse?.id ?? patient.assignedNurseId,
-    assignedNurseName: patient.assignedNurse?.name,
-    referredSpecialistId: patient.referredSpecialist?.id ?? patient.referredSpecialistId,
-    referredSpecialistName: patient.referredSpecialist?.name,
+    assignedSpecialistId: patient.assignedSpecialist?.id ?? patient.assignedSpecialistId,
+    assignedSpecialistName: patient.assignedSpecialist?.name,
+    assignedTherapistId: patient.assignedTherapist?.id ?? patient.assignedTherapistId,
+    assignedTherapistName: patient.assignedTherapist?.name,
+    // Keep old fields for backward compatibility during migration
+    assignedDoctorId: patient.assignedSpecialist?.id ?? patient.assignedSpecialistId,
+    assignedNurseId: undefined,
+    referredSpecialistId: patient.assignedTherapist?.id ?? patient.assignedTherapistId,
   } as Patient;
 }
 

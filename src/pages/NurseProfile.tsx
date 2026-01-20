@@ -139,7 +139,7 @@ export default function NurseProfile() {
                 <img 
                   src={nurse.avatar.startsWith('http') 
                     ? nurse.avatar 
-                    : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${nurse.avatar.startsWith('/') ? nurse.avatar : '/' + nurse.avatar}`} 
+                    : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${nurse.avatar.startsWith('/') ? nurse.avatar : '/' + nurse.avatar}`} 
                   alt={nurse.name} 
                   className="h-24 w-24 rounded-full object-cover mx-auto mb-4" 
                 />

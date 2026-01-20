@@ -213,13 +213,14 @@ export default function Services() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {filteredServices.map((service) => (
           <div key={service.id} className="card hover:shadow-lg transition-shadow duration-200">
-            <div className="aspect-w-16 aspect-h-9 mb-4">
+            {/* Image section commented out */}
+            {/* <div className="aspect-w-16 aspect-h-9 mb-4">
               <img
                 src={service.image}
                 alt={service.name}
                 className="w-full h-48 object-cover rounded-lg"
               />
-            </div>
+            </div> */}
             
             <div className="space-y-3">
               <div className="flex items-start justify-between">
@@ -297,13 +298,14 @@ export default function Services() {
                   </button>
                 </div>
                 
-                <div className="aspect-w-16 aspect-h-9 mb-4">
+                {/* Image section commented out */}
+                {/* <div className="aspect-w-16 aspect-h-9 mb-4">
                   <img
                     src={selectedService.image}
                     alt={selectedService.name}
                     className="w-full h-48 object-cover rounded-lg"
                   />
-                </div>
+                </div> */}
                 
                 <p className="text-sm text-gray-600 mb-4">{selectedService.description}</p>
                 

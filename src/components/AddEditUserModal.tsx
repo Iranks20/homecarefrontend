@@ -109,7 +109,7 @@ export default function AddEditUserModal({
         if (user.avatar) {
           const avatarUrl = user.avatar.startsWith('http') 
             ? user.avatar 
-            : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${user.avatar.startsWith('/') ? user.avatar : '/' + user.avatar}`;
+            : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${user.avatar.startsWith('/') ? user.avatar : '/' + user.avatar}`;
           setAvatarPreview(avatarUrl);
         } else {
           setAvatarPreview(null);
@@ -192,7 +192,7 @@ export default function AddEditUserModal({
           }));
           
           // Update preview with full URL for display
-          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007';
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007';
           const previewUrl = `${baseUrl}${avatarPath}`;
           setAvatarPreview(previewUrl);
         }

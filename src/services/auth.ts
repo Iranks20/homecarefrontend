@@ -39,6 +39,7 @@ const ROLE_SLUGS: ReadonlyArray<User['role']> = [
   'doctor',
   'specialist',
   'nurse',
+  'biller',
 ] as const;
 
 const ROLE_CODE_MAP: Record<string, User['role']> = {
@@ -47,6 +48,7 @@ const ROLE_CODE_MAP: Record<string, User['role']> = {
   DOCTOR: 'doctor',
   SPECIALIST: 'specialist',
   NURSE: 'nurse',
+  BILLER: 'biller',
 };
 
 export class AuthService {
@@ -194,7 +196,7 @@ export class AuthService {
 
   private normalizeRole(role: string): User['role'] {
     if (!role) {
-      return 'nurse'; // Default fallback
+      return 'admin'; // Default fallback to admin instead of nurse
     }
 
     const normalizedKey = role.trim().toUpperCase().replace(/[\s-]+/g, '_');
@@ -208,7 +210,8 @@ export class AuthService {
       return slug as User['role'];
     }
 
-    return 'nurse'; // Default fallback
+    // If role doesn't match, return as-is (lowercased) rather than defaulting to nurse
+    return slug as User['role'];
   }
 
   private mapRoleToCode(role: User['role']): string {

@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Phone,
@@ -11,6 +11,12 @@ import {
   FileText,
   TrendingUp,
   Clock,
+  DollarSign,
+  CreditCard,
+  Plus,
+  Heart,
+  Thermometer,
+  Gauge,
 } from 'lucide-react';
 import {
   LineChart,
@@ -21,9 +27,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useApi } from '../hooks/useApi';
+import { useApi, useApiMutation } from '../hooks/useApi';
 import { patientService } from '../services/patients';
 import { healthRecordService } from '../services/healthRecords';
+import { billingService } from '../services/billing';
+import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import AddEditHealthRecordModal from '../components/AddEditHealthRecordModal';
 import type {
   Patient,
   MedicalRecord,
@@ -42,6 +52,12 @@ interface PatientProfileData {
 
 export default function PatientProfile() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const { addNotification } = useNotifications();
+  const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
+
+  // Check if user can record vitals (nurses, specialists, therapists, admin)
+  const canRecordVitals = user?.role === 'nurse' || user?.role === 'specialist' || user?.role === 'therapist' || user?.role === 'admin';
 
   const {
     data: profileData,
@@ -63,6 +79,17 @@ export default function PatientProfile() {
 
     return { patient, medicalHistory, progress, cases, healthRecords } as PatientProfileData;
   }, [id]);
+
+  // Fetch invoices for this patient
+  const {
+    data: invoicesData,
+    loading: loadingInvoices,
+  } = useApi(() => {
+    if (!id) return Promise.resolve({ invoices: [], pagination: undefined });
+    return billingService.getInvoices({ patientId: id, limit: 50 });
+  }, [id]);
+
+  const invoices = invoicesData?.invoices ?? [];
 
   const patient = profileData?.patient;
 
@@ -92,6 +119,52 @@ export default function PatientProfile() {
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 6);
   }, [profileData?.healthRecords]);
+
+  // Get latest vitals
+  const latestVitals = useMemo(() => {
+    if (!profileData?.healthRecords) {
+      return null;
+    }
+    const vitals = profileData.healthRecords
+      .filter(record => record.recordType === 'vital')
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return vitals.length > 0 ? vitals[0] : null;
+  }, [profileData?.healthRecords]);
+
+  const createHealthRecordMutation = useApiMutation(healthRecordService.createHealthRecord.bind(healthRecordService));
+
+  const handleRecordVitals = async (payload: any) => {
+    if (!id) return;
+    
+    try {
+      await createHealthRecordMutation.mutate({
+        ...payload,
+        patientId: id,
+        recordType: 'vital',
+      });
+      
+      addNotification({
+        title: 'Vitals recorded',
+        message: 'Patient vitals have been recorded successfully.',
+        type: 'success',
+        priority: 'medium',
+        category: 'system',
+        userId: 'system',
+      });
+      
+      setIsVitalsModalOpen(false);
+      await refetch();
+    } catch (error: any) {
+      addNotification({
+        title: 'Failed to record vitals',
+        message: error?.message || 'Unable to record vitals. Please try again.',
+        type: 'error',
+        priority: 'high',
+        category: 'system',
+        userId: 'system',
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -151,7 +224,7 @@ export default function PatientProfile() {
               <img
                 src={patient.avatar.startsWith('http') 
                   ? patient.avatar 
-                  : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`}
+                  : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`}
                 alt={patient.name}
                 className="h-24 w-24 rounded-full object-cover mx-auto mb-4"
                 onError={(e) => {
@@ -400,11 +473,113 @@ export default function PatientProfile() {
             )}
           </div>
 
+          {/* Latest Vitals Display */}
+          {latestVitals && (
+            <div className="card bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-blue-600" />
+                  Latest Vitals
+                </h3>
+                <span className="text-xs text-gray-500">
+                  {new Date(latestVitals.timestamp).toLocaleString()}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {latestVitals.data.bloodPressure && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Gauge className="h-4 w-4 text-blue-600" />
+                      <span className="text-xs font-medium text-gray-600">Blood Pressure</span>
+                    </div>
+                    <p className="text-lg font-semibold text-gray-900">{latestVitals.data.bloodPressure}</p>
+                  </div>
+                )}
+                {latestVitals.data.heartRate && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Heart className="h-4 w-4 text-red-600" />
+                      <span className="text-xs font-medium text-gray-600">Heart Rate</span>
+                    </div>
+                    <p className="text-lg font-semibold text-gray-900">{latestVitals.data.heartRate} bpm</p>
+                  </div>
+                )}
+                {latestVitals.data.temperature && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Thermometer className="h-4 w-4 text-orange-600" />
+                      <span className="text-xs font-medium text-gray-600">Temperature</span>
+                    </div>
+                    <p className="text-lg font-semibold text-gray-900">{latestVitals.data.temperature}°F</p>
+                  </div>
+                )}
+                {latestVitals.data.oxygenSaturation && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Activity className="h-4 w-4 text-green-600" />
+                      <span className="text-xs font-medium text-gray-600">SpO2</span>
+                    </div>
+                    <p className="text-lg font-semibold text-gray-900">{latestVitals.data.oxygenSaturation}%</p>
+                  </div>
+                )}
+                {latestVitals.data.bmi && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Activity className="h-4 w-4 text-purple-600" />
+                      <span className="text-xs font-medium text-gray-600">BMI</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-semibold text-gray-900">{latestVitals.data.bmi}</p>
+                      {latestVitals.data.bmiCategory && (
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          latestVitals.data.bmiCategory === 'Normal weight' 
+                            ? 'bg-green-100 text-green-800' 
+                            : latestVitals.data.bmiCategory === 'Underweight'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : latestVitals.data.bmiCategory === 'Overweight'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {latestVitals.data.bmiCategory}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {latestVitals.data.weight && (
+                <div className="mt-3 text-sm text-gray-600">
+                  <strong>Weight:</strong> {latestVitals.data.weight} lbs
+                  {latestVitals.data.height && ` | Height: ${latestVitals.data.height} inches`}
+                </div>
+              )}
+              {latestVitals.notes && (
+                <div className="mt-3 text-sm text-gray-700 bg-white rounded p-2 border border-blue-200">
+                  <strong>Notes:</strong> {latestVitals.notes}
+                </div>
+              )}
+              <div className="mt-3 text-xs text-gray-500">
+                Recorded by {latestVitals.updatedByName} ({latestVitals.updatedByRole})
+              </div>
+            </div>
+          )}
+
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Recent Health Records</h3>
-              <Clock className="h-5 w-5 text-primary-500" />
+              <div className="flex items-center gap-2">
+                {canRecordVitals && (
+                  <button
+                    onClick={() => setIsVitalsModalOpen(true)}
+                    className="btn-primary text-sm flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Record Vitals
+                  </button>
+                )}
+                <Clock className="h-5 w-5 text-primary-500" />
               </div>
+            </div>
               
             {recentHealthRecords.length ? (
               <div className="space-y-3">
@@ -417,12 +592,28 @@ export default function PatientProfile() {
                       <span className="text-xs text-gray-500">
                         {new Date(record.timestamp).toLocaleString()}
                       </span>
-              </div>
+                    </div>
                     <p className="text-xs text-gray-500 mb-1">
                       Updated by {record.updatedByName} ({record.updatedByRole})
                     </p>
-                    {record.notes && <p className="text-sm text-gray-600">{record.notes}</p>}
-              </div>
+                    {record.recordType === 'vital' && record.data && (
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                        {record.data.bloodPressure && (
+                          <span><strong>BP:</strong> {record.data.bloodPressure}</span>
+                        )}
+                        {record.data.heartRate && (
+                          <span><strong>HR:</strong> {record.data.heartRate} bpm</span>
+                        )}
+                        {record.data.temperature && (
+                          <span><strong>Temp:</strong> {record.data.temperature}°F</span>
+                        )}
+                        {record.data.oxygenSaturation && (
+                          <span><strong>SpO2:</strong> {record.data.oxygenSaturation}%</span>
+                        )}
+                      </div>
+                    )}
+                    {record.notes && <p className="text-sm text-gray-600 mt-2">{record.notes}</p>}
+                  </div>
                 ))}
               </div>
             ) : (
@@ -430,8 +621,78 @@ export default function PatientProfile() {
             )}
           </div>
 
+          {/* Billing & Invoices */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Billing & Invoices</h3>
+              <CreditCard className="h-5 w-5 text-primary-500" />
+            </div>
+            
+            {loadingInvoices ? (
+              <p className="text-sm text-gray-500">Loading invoices...</p>
+            ) : invoices.length > 0 ? (
+              <div className="space-y-3">
+                {invoices.map((invoice) => (
+                  <div key={invoice.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-gray-900">{invoice.serviceName}</span>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              invoice.status === 'paid'
+                                ? 'bg-green-100 text-green-800'
+                                : invoice.status === 'overdue'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
+                            {invoice.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-1">{invoice.description || 'Service invoice'}</p>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>Date: {new Date(invoice.date).toLocaleDateString()}</span>
+                          <span>Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center text-sm font-semibold text-gray-900">
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          {invoice.amount.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="mt-4 pt-3 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Total Outstanding:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      ${invoices
+                        .filter(inv => inv.status !== 'paid')
+                        .reduce((sum, inv) => sum + inv.amount, 0)
+                        .toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-sm font-medium text-gray-700">Total Paid:</span>
+                    <span className="text-sm font-semibold text-green-600">
+                      ${invoices
+                        .filter(inv => inv.status === 'paid')
+                        .reduce((sum, inv) => sum + inv.amount, 0)
+                        .toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No invoices found for this patient.</p>
+            )}
+          </div>
+
           {/* Additional Patient Information */}
-          {(patient.allergies || patient.currentMedications || patient.insuranceProvider || patient.referralSource) && (
+          {(patient.allergies || patient.currentMedications || (patient as any).paymentType || patient.insuranceProvider || (patient as any).serviceIds || patient.referralSource) && (
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Additional Information</h3>
@@ -439,6 +700,37 @@ export default function PatientProfile() {
               </div>
               
               <div className="space-y-4">
+                {(patient as any).paymentType && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">Payment Type</h4>
+                    <p className="text-sm text-gray-600 capitalize">
+                      {(patient as any).paymentType?.toLowerCase() || 'Cash'}
+                    </p>
+                  </div>
+                )}
+                {patient.insuranceProvider && (patient as any).paymentType === 'INSURANCE' && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">Insurance Information</h4>
+                    <p className="text-sm text-gray-600">
+                      <strong>Provider:</strong> {patient.insuranceProvider}
+                      {patient.insuranceNumber && (
+                        <>
+                          <br />
+                          <strong>Policy Number:</strong> {patient.insuranceNumber}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
+                {(patient as any).serviceIds && (patient as any).serviceIds.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">Selected Services</h4>
+                    <p className="text-sm text-gray-600">
+                      {(patient as any).serviceIds.length} service{((patient as any).serviceIds.length !== 1) ? 's' : ''} selected
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Check Billing section for service details and invoices</p>
+                  </div>
+                )}
                 {patient.allergies && (
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-1">Allergies</h4>
@@ -449,15 +741,6 @@ export default function PatientProfile() {
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-1">Current Medications</h4>
                     <p className="text-sm text-gray-600 whitespace-pre-line">{patient.currentMedications}</p>
-                  </div>
-                )}
-                {patient.insuranceProvider && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">Insurance</h4>
-                    <p className="text-sm text-gray-600">
-                      {patient.insuranceProvider}
-                      {patient.insuranceNumber && ` - ${patient.insuranceNumber}`}
-                    </p>
                   </div>
                 )}
                 {patient.referralSource && (
@@ -471,6 +754,17 @@ export default function PatientProfile() {
           )}
         </div>
       </div>
+
+      {/* Record Vitals Modal */}
+      {canRecordVitals && id && (
+        <AddEditHealthRecordModal
+          isOpen={isVitalsModalOpen}
+          onClose={() => setIsVitalsModalOpen(false)}
+          onSave={handleRecordVitals}
+          mode="add"
+          patientId={id}
+        />
+      )}
     </div>
   );
 }

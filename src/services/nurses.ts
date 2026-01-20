@@ -11,6 +11,7 @@ export interface NurseSearchParams {
 export interface NursePayload {
   name: string;
   email: string;
+  password: string;
   phone: string;
   licenseNumber: string;
   specialization: string;

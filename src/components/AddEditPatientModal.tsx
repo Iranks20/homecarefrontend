@@ -1,21 +1,18 @@
 import { useEffect, useState } from 'react';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
-import { Patient } from '../types';
+import { X, Upload, Image as ImageIcon, FileText } from 'lucide-react';
+import { Patient, Service } from '../types';
 import { apiService } from '../services/api';
 import { API_ENDPOINTS } from '../config/api';
+import servicesService from '../services/services';
+import { useApi } from '../hooks/useApi';
 
-interface NurseOption {
-  id: string;
-  name: string;
-}
-
-interface DoctorOption {
+interface SpecialistOption {
   id: string;
   name: string;
   specialization?: string;
 }
 
-interface SpecialistOption {
+interface TherapistOption {
   id: string;
   name: string;
   specialization?: string;
@@ -31,16 +28,15 @@ export interface PatientFormValues {
   state?: string;
   zipCode?: string;
   condition: string;
-  assignedNurseId?: string;
-  assignedDoctorId?: string;
-  referredSpecialistId?: string;
+  assignedSpecialistId?: string; // Receptionist assigns to either Specialist OR Therapist
+  assignedTherapistId?: string;   // Receptionist assigns to either Specialist OR Therapist
+  serviceIds?: string[]; // Selected services for the patient
   status: Patient['status'];
   avatar?: string;
   emergencyContact?: string;
   emergencyPhone?: string;
-  medicalHistory?: string; // Text field for medical history notes
-  currentMedications?: string;
   allergies?: string;
+  paymentType?: 'CASH' | 'INSURANCE';
   insuranceProvider?: string;
   insuranceNumber?: string;
   referralSource?: string;
@@ -52,9 +48,8 @@ interface AddEditPatientModalProps {
   onSave: (values: PatientFormValues) => Promise<void>;
   patient?: Patient | null;
   mode: 'add' | 'edit';
-  nurses: NurseOption[];
-  doctors: DoctorOption[];
-  specialists?: SpecialistOption[];
+  specialists: SpecialistOption[];
+  therapists: TherapistOption[];
 }
 
 const DEFAULT_FORM: PatientFormValues = {
@@ -67,16 +62,15 @@ const DEFAULT_FORM: PatientFormValues = {
   state: '',
   zipCode: '',
   condition: '',
-  assignedNurseId: '',
-  assignedDoctorId: '',
-  referredSpecialistId: '',
+  assignedSpecialistId: '',
+  assignedTherapistId: '',
+  serviceIds: [],
   status: 'active',
   avatar: '',
   emergencyContact: '',
   emergencyPhone: '',
-  medicalHistory: '',
-  currentMedications: '',
   allergies: '',
+  paymentType: 'CASH',
   insuranceProvider: '',
   insuranceNumber: '',
   referralSource: '',
@@ -88,9 +82,8 @@ export default function AddEditPatientModal({
   onSave,
   patient,
   mode,
-  nurses,
-  doctors,
-  specialists = [],
+  specialists,
+  therapists,
 }: AddEditPatientModalProps) {
   const [formData, setFormData] = useState<PatientFormValues>(DEFAULT_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,6 +91,14 @@ export default function AddEditPatientModal({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // Load services for selection
+  const {
+    data: servicesData,
+    loading: loadingServices,
+  } = useApi(() => servicesService.getServices({ isActive: true, limit: 200 }), []);
+
+  const servicesList = servicesData?.services ?? [];
 
   useEffect(() => {
     if (!isOpen) {
@@ -130,16 +131,15 @@ export default function AddEditPatientModal({
         state,
         zipCode,
         condition: patient.condition,
-        assignedNurseId: patient.assignedNurseId ?? '',
-        assignedDoctorId: patient.assignedDoctorId ?? '',
-        referredSpecialistId: patient.referredSpecialistId ?? '',
+        assignedSpecialistId: (patient as any).assignedSpecialistId ?? '',
+        assignedTherapistId: (patient as any).assignedTherapistId ?? '',
+        serviceIds: (patient as any).serviceIds ?? [],
         status: patient.status ?? 'active',
         avatar: patient.avatar ?? '',
         emergencyContact: patient.emergencyContact ?? '',
         emergencyPhone: patient.emergencyPhone ?? '',
-        medicalHistory: patient.medicalHistoryText ?? '',
-        currentMedications: patient.currentMedications ?? '',
         allergies: patient.allergies ?? '',
+        paymentType: (patient as any).paymentType === 'INSURANCE' ? 'INSURANCE' : 'CASH',
         insuranceProvider: patient.insuranceProvider ?? '',
         insuranceNumber: patient.insuranceNumber ?? '',
         referralSource: patient.referralSource ?? '',
@@ -148,7 +148,7 @@ export default function AddEditPatientModal({
       if (patient.avatar) {
         const avatarUrl = patient.avatar.startsWith('http') 
           ? patient.avatar 
-          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`;
+          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`;
         setAvatarPreview(avatarUrl);
       } else {
         setAvatarPreview(null);
@@ -170,10 +170,44 @@ export default function AddEditPatientModal({
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = event.target;
-    setFormData((prev) => ({
+    setFormData((prev) => {
+      const newData = { ...prev, [name]: value };
+      // Clear insurance fields if payment type changes to CASH
+      if (name === 'paymentType' && value === 'CASH') {
+        newData.insuranceProvider = '';
+        newData.insuranceNumber = '';
+      }
+      // If assigning to Specialist, clear Therapist assignment (mutually exclusive)
+      if (name === 'assignedSpecialistId' && value) {
+        newData.assignedTherapistId = '';
+      }
+      // If assigning to Therapist, clear Specialist assignment (mutually exclusive)
+      if (name === 'assignedTherapistId' && value) {
+        newData.assignedSpecialistId = '';
+      }
+      return newData;
+    });
+  };
+
+  const handleServiceToggle = (serviceId: string) => {
+    setFormData((prev) => {
+      const currentIds = prev.serviceIds || [];
+      const isSelected = currentIds.includes(serviceId);
+      return {
       ...prev,
-      [name]: value,
-    }));
+        serviceIds: isSelected
+          ? currentIds.filter(id => id !== serviceId)
+          : [...currentIds, serviceId],
+      };
+    });
+  };
+
+  const getTotalAmount = () => {
+    if (!formData.serviceIds || formData.serviceIds.length === 0) return 0;
+    return formData.serviceIds.reduce((total, serviceId) => {
+      const service = servicesList.find(s => s.id === serviceId);
+      return total + (service?.price || 0);
+    }, 0);
   };
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,7 +262,7 @@ export default function AddEditPatientModal({
           }));
           
           // Update preview with full URL for display
-          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007';
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007';
           const previewUrl = `${baseUrl}${avatarPath}`;
           setAvatarPreview(previewUrl);
         }
@@ -441,28 +475,6 @@ export default function AddEditPatientModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Medical History</label>
-                <textarea
-                  name="medicalHistory"
-                  value={formData.medicalHistory}
-                  onChange={handleChange}
-                  rows={3}
-                  className="input-field mt-1"
-                  placeholder="Previous medical conditions, surgeries, etc."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Current Medications</label>
-                <textarea
-                  name="currentMedications"
-                  value={formData.currentMedications}
-                  onChange={handleChange}
-                  rows={2}
-                  className="input-field mt-1"
-                  placeholder="List current medications and dosages"
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700">Allergies</label>
                 <input
                   type="text"
@@ -476,14 +488,14 @@ export default function AddEditPatientModal({
             </div>
           </section>
 
-          {/* Emergency Contact */}
+          {/* Next of Kin Contact */}
           <section>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Emergency Contact</h3>
-            <p className="text-sm text-gray-500 mb-4">Emergency contact information</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Next of Kin Contact</h3>
+            <p className="text-sm text-gray-500 mb-4">Next of kin contact information</p>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Emergency Contact Name</label>
+                <label className="block text-sm font-medium text-gray-700">Next of Kin Name</label>
                 <input
                   type="text"
                   name="emergencyContact"
@@ -494,7 +506,7 @@ export default function AddEditPatientModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Emergency Phone</label>
+                <label className="block text-sm font-medium text-gray-700">Next of Kin Phone</label>
                 <input
                   type="tel"
                   name="emergencyPhone"
@@ -507,14 +519,34 @@ export default function AddEditPatientModal({
             </div>
           </section>
 
-          {/* Insurance Information */}
+          {/* Payment & Insurance Information */}
           <section>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Insurance Information</h3>
-            <p className="text-sm text-gray-500 mb-4">Insurance provider details</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Payment & Insurance Information</h3>
+            <p className="text-sm text-gray-500 mb-4">Payment method and insurance details</p>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Payment Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="paymentType"
+                  value={formData.paymentType || 'CASH'}
+                  onChange={handleChange}
+                  className="input-field mt-1"
+                  required
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="INSURANCE">Insurance</option>
+                </select>
+              </div>
+
+              {formData.paymentType === 'INSURANCE' && (
+                <>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Insurance Provider</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Insurance Provider <span className="text-red-500">*</span>
+                    </label>
                 <input
                   type="text"
                   name="insuranceProvider"
@@ -522,10 +554,13 @@ export default function AddEditPatientModal({
                   onChange={handleChange}
                   className="input-field mt-1"
                   placeholder="Insurance company name"
+                      required={formData.paymentType === 'INSURANCE'}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Insurance Number</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Insurance Number <span className="text-red-500">*</span>
+                    </label>
                 <input
                   type="text"
                   name="insuranceNumber"
@@ -533,70 +568,71 @@ export default function AddEditPatientModal({
                   onChange={handleChange}
                   className="input-field mt-1"
                   placeholder="Policy number"
+                      required={formData.paymentType === 'INSURANCE'}
                 />
               </div>
+                </>
+              )}
             </div>
           </section>
 
           {/* Assignment & Care Details */}
           <section>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Assignment & Care Details</h3>
-            <p className="text-sm text-gray-500 mb-4">Assign patient to care providers</p>
+            <p className="text-sm text-gray-500 mb-4">Assign patient to care providers (select either Specialist or Therapist)</p>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Assigned Doctor
+                  Assigned Specialist
                 </label>
                 <select
-                  name="assignedDoctorId"
-                  value={formData.assignedDoctorId ?? ''}
+                  name="assignedSpecialistId"
+                  value={formData.assignedSpecialistId ?? ''}
                   onChange={handleChange}
                   className="input-field mt-1"
-                >
-                  <option value="">Select doctor</option>
-                  {doctors.map((doctor) => (
-                    <option key={doctor.id} value={doctor.id}>
-                      {doctor.name}{doctor.specialization ? ` (${doctor.specialization})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Assigned Nurse
-                </label>
-                <select
-                  name="assignedNurseId"
-                  value={formData.assignedNurseId ?? ''}
-                  onChange={handleChange}
-                  className="input-field mt-1"
-                >
-                  <option value="">Select nurse</option>
-                  {nurses.map((nurse) => (
-                    <option key={nurse.id} value={nurse.id}>
-                      {nurse.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Referred Specialist
-                </label>
-                <select
-                  name="referredSpecialistId"
-                  value={formData.referredSpecialistId ?? ''}
-                  onChange={handleChange}
-                  className="input-field mt-1"
+                  disabled={!!formData.assignedTherapistId}
                 >
                   <option value="">Select specialist</option>
-                  {specialists.map((specialist) => (
+                  {specialists && specialists.length > 0 ? (
+                    specialists.map((specialist) => (
                     <option key={specialist.id} value={specialist.id}>
                       {specialist.name}{specialist.specialization ? ` (${specialist.specialization})` : ''}
                     </option>
-                  ))}
+                    ))
+                  ) : (
+                    <option value="" disabled>No specialists available</option>
+                  )}
                 </select>
+                {formData.assignedTherapistId && (
+                  <p className="text-xs text-gray-500 mt-1">Clear Therapist assignment first</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Assigned Therapist
+                </label>
+                <select
+                  name="assignedTherapistId"
+                  value={formData.assignedTherapistId ?? ''}
+                  onChange={handleChange}
+                  className="input-field mt-1"
+                  disabled={!!formData.assignedSpecialistId}
+                >
+                  <option value="">Select therapist</option>
+                  {therapists && therapists.length > 0 ? (
+                    therapists.map((therapist) => (
+                    <option key={therapist.id} value={therapist.id}>
+                      {therapist.name}{therapist.specialization ? ` (${therapist.specialization})` : ''}
+                    </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No therapists available</option>
+                  )}
+                </select>
+                {formData.assignedSpecialistId && (
+                  <p className="text-xs text-gray-500 mt-1">Clear Specialist assignment first</p>
+                )}
               </div>
               {mode === 'edit' && (
                 <div>
@@ -627,7 +663,90 @@ export default function AddEditPatientModal({
                   placeholder="How did patient find us?"
                 />
               </div>
-              <div>
+            </div>
+            
+            {/* Services Selection */}
+            <div className="mt-4">
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Services
+                </label>
+                <p className="text-xs text-gray-500">
+                  Select one or more services. Invoices will be created automatically for selected services.
+                </p>
+              </div>
+
+              {loadingServices ? (
+                <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <p className="text-xs text-gray-500">Loading services...</p>
+                </div>
+              ) : servicesList && servicesList.length > 0 ? (
+                <>
+                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {servicesList.map((service) => {
+                        const isSelected = formData.serviceIds?.includes(service.id) || false;
+                        return (
+                          <div
+                            key={service.id}
+                            onClick={() => handleServiceToggle(service.id)}
+                            className={`
+                              relative border-2 rounded-lg p-3 cursor-pointer transition-all duration-200
+                              ${isSelected
+                                ? 'border-blue-500 bg-blue-50 shadow-sm'
+                                : 'border-gray-200 bg-white hover:border-blue-300'
+                              }
+                            `}
+                          >
+                            <div className="flex items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleServiceToggle(service.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-4 w-4 mt-0.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                    {service.name}
+                                  </h4>
+                                </div>
+                                {service.category && (
+                                  <p className="text-xs text-gray-500 capitalize">
+                                    {service.category.toLowerCase().replace('_', ' ')}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <div className="absolute top-2 right-2">
+                                <div className="h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </>
+              ) : (
+                <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
+                  <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs font-medium text-gray-700">No services available</p>
+                  <p className="text-xs text-gray-500 mt-1">Please add services to the system first</p>
+                </div>
+              )}
+            </div>
+
+            {/* Patient Photo */}
+            <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Patient Photo
                 </label>
@@ -675,7 +794,6 @@ export default function AddEditPatientModal({
                     <p className="text-xs text-gray-500 mt-1">
                       JPG, PNG or GIF (max 10MB)
                     </p>
-                  </div>
                 </div>
               </div>
             </div>

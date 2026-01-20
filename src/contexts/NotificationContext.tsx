@@ -29,10 +29,18 @@ interface NotificationProviderProps {
   children: ReactNode;
 }
 
-const normalizeNotification = (notification: Notification): Notification => ({
+const normalizeNotification = (notification: any): Notification => ({
   ...notification,
-  date: notification.date ?? new Date().toISOString(),
-  read: notification.read ?? false,
+  id: notification.id || notification._id || '',
+  date: notification.date || notification.createdAt || new Date().toISOString(),
+  read: notification.read ?? notification.isRead ?? false,
+  title: notification.title || '',
+  message: notification.message || '',
+  type: (notification.type || 'info').toLowerCase(),
+  priority: notification.priority || 'medium',
+  category: notification.category || 'general',
+  userId: notification.userId || '',
+  phoneNotification: notification.phoneNotification ?? false,
 });
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
@@ -45,12 +53,36 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     const fetchNotifications = async () => {
       try {
         const response = await notificationService.getNotifications({ limit: 50 });
-        const data = Array.isArray(response.data) ? response.data : response?.data ?? [];
+        // Handle different response structures
+        // API returns: { success: true, data: [...], pagination: {...} }
+        // Service returns: PaginatedResponse which is { data: [...], pagination: {...} }
+        let notificationsData: any[] = [];
+        
+        if (Array.isArray(response)) {
+          notificationsData = response;
+        } else if (response && typeof response === 'object') {
+          // Check if response has data array directly
+          if (Array.isArray(response.data)) {
+            notificationsData = response.data;
+          } 
+          // Check if response.data is an object with data array (nested structure)
+          else if (response.data && typeof response.data === 'object' && Array.isArray(response.data.data)) {
+            notificationsData = response.data.data;
+          }
+          // Check for success wrapper with data array
+          else if (response.success && Array.isArray(response.data)) {
+            notificationsData = response.data;
+          }
+        }
+        
         if (isMounted) {
-          setNotifications(data.map(normalizeNotification));
+          setNotifications(notificationsData.map(normalizeNotification));
         }
       } catch (error) {
         console.error('Failed to load notifications', error);
+        if (isMounted) {
+          setNotifications([]);
+        }
       } finally {
         if (isMounted) {
           setIsLoading(false);

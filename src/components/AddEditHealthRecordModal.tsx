@@ -14,6 +14,7 @@ interface AddEditHealthRecordModalProps {
   onSave: (payload: HealthRecordSubmitPayload) => Promise<void>;
   record?: HealthRecordUpdate | null;
   mode: 'add' | 'edit';
+  patientId?: string; // Optional patientId to pre-fill when adding from patient profile
 }
 
 export default function AddEditHealthRecordModal({ 
@@ -21,7 +22,8 @@ export default function AddEditHealthRecordModal({
   onClose, 
   onSave, 
   record, 
-  mode
+  mode,
+  patientId
 }: AddEditHealthRecordModalProps) {
   const [formData, setFormData] = useState({
     patientId: '',
@@ -32,6 +34,8 @@ export default function AddEditHealthRecordModal({
       temperature: '',
       weight: '',
       height: '',
+      bmi: '',
+      bmiCategory: '',
       bloodSugar: '',
       oxygenSaturation: '',
       medication: '',
@@ -109,10 +113,30 @@ export default function AddEditHealthRecordModal({
       };
       loadPatients();
     }
-  }, [isOpen, record, mode]);
+  }, [isOpen, record, mode, patientId]);
 
   useEffect(() => {
-    if (record && mode === 'edit') {
+    if (mode === 'add' && patientId) {
+      // Pre-fill patientId when adding from patient profile
+      setFormData(prev => ({
+        ...prev,
+        patientId: patientId,
+        recordType: 'vital', // Default to vital when adding from patient profile
+      }));
+    } else if (record && mode === 'edit') {
+      // Recalculate BMI if weight/height exist but BMI doesn't
+      const weight = record.data.weight?.toString() || '';
+      const height = record.data.height?.toString() || '';
+      const existingBmi = record.data.bmi?.toString() || '';
+      
+      let bmiData = { bmi: existingBmi, bmiCategory: record.data.bmiCategory || '' };
+      if (weight && height && !existingBmi) {
+        bmiData = calculateBMI(weight, height);
+      } else if (weight && height && existingBmi) {
+        // Recalculate to ensure consistency
+        bmiData = calculateBMI(weight, height);
+      }
+      
       setFormData({
         patientId: record.patientId,
         recordType: record.recordType,
@@ -120,8 +144,10 @@ export default function AddEditHealthRecordModal({
           bloodPressure: record.data.bloodPressure || '',
           heartRate: record.data.heartRate?.toString() || '',
           temperature: record.data.temperature?.toString() || '',
-          weight: record.data.weight?.toString() || '',
-          height: record.data.height?.toString() || '',
+          weight: weight,
+          height: height,
+          bmi: bmiData.bmi,
+          bmiCategory: bmiData.bmiCategory,
           bloodSugar: record.data.bloodSugar?.toString() || '',
           oxygenSaturation: record.data.oxygenSaturation?.toString() || '',
           medication: record.data.medication || '',
@@ -163,6 +189,8 @@ export default function AddEditHealthRecordModal({
           temperature: '',
           weight: '',
           height: '',
+          bmi: '',
+          bmiCategory: '',
           bloodSugar: '',
           oxygenSaturation: '',
           medication: '',
@@ -197,18 +225,61 @@ export default function AddEditHealthRecordModal({
     }
   }, [record, mode]);
 
+  // Calculate BMI from weight (lbs) and height (inches)
+  // Formula: BMI = (weight in pounds / height in inches²) × 703
+  const calculateBMI = (weight: string, height: string): { bmi: string; category: string } => {
+    const weightNum = parseFloat(weight);
+    const heightNum = parseFloat(height);
+    
+    if (!weightNum || !heightNum || weightNum <= 0 || heightNum <= 0) {
+      return { bmi: '', category: '' };
+    }
+    
+    // Convert height from inches to meters for calculation
+    // BMI = (weight in pounds / height in inches²) × 703
+    const bmi = (weightNum / (heightNum * heightNum)) * 703;
+    const bmiRounded = Math.round(bmi * 10) / 10; // Round to 1 decimal place
+    
+    // Determine BMI category
+    let category = '';
+    if (bmiRounded < 18.5) {
+      category = 'Underweight';
+    } else if (bmiRounded >= 18.5 && bmiRounded < 25.0) {
+      category = 'Normal weight';
+    } else if (bmiRounded >= 25.0 && bmiRounded < 30.0) {
+      category = 'Overweight';
+    } else {
+      category = 'Obese';
+    }
+    
+    return { bmi: bmiRounded.toString(), category };
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     
     if (name.startsWith('data.')) {
       const dataField = name.replace('data.', '');
-      setFormData(prev => ({
-        ...prev,
-        data: {
+      setFormData(prev => {
+        const updatedData = {
           ...prev.data,
           [dataField]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+        };
+        
+        // Auto-calculate BMI when weight or height changes
+        if (dataField === 'weight' || dataField === 'height') {
+          const weight = dataField === 'weight' ? value : prev.data.weight;
+          const height = dataField === 'height' ? value : prev.data.height;
+          const { bmi, category } = calculateBMI(weight, height);
+          updatedData.bmi = bmi;
+          updatedData.bmiCategory = category;
         }
-      }));
+        
+        return {
+          ...prev,
+          data: updatedData
+        };
+      });
     } else {
       setFormData(prev => ({
         ...prev,
@@ -460,6 +531,40 @@ export default function AddEditHealthRecordModal({
           placeholder="e.g., 65"
           className="input-field"
         />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          BMI (Body Mass Index)
+          <span className="text-xs text-gray-500 ml-1">(Auto-calculated)</span>
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            name="data.bmi"
+            value={formData.data.bmi || ''}
+            readOnly
+            placeholder="Enter weight & height"
+            className="input-field bg-gray-50 flex-1"
+          />
+          {formData.data.bmiCategory && (
+            <span className={`px-3 py-2 rounded-md text-sm font-medium ${
+              formData.data.bmiCategory === 'Normal weight' 
+                ? 'bg-green-100 text-green-800' 
+                : formData.data.bmiCategory === 'Underweight'
+                ? 'bg-yellow-100 text-yellow-800'
+                : formData.data.bmiCategory === 'Overweight'
+                ? 'bg-orange-100 text-orange-800'
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {formData.data.bmiCategory}
+            </span>
+          )}
+        </div>
+        {formData.data.bmi && (
+          <p className="text-xs text-gray-500 mt-1">
+            BMI Categories: Underweight (&lt;18.5) | Normal (18.5-24.9) | Overweight (25-29.9) | Obese (≥30)
+          </p>
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Blood Sugar (mg/dL)</label>
@@ -985,21 +1090,26 @@ export default function AddEditHealthRecordModal({
               {loadingPatients ? (
                 <div className="input-field text-gray-500">Loading patients...</div>
               ) : (
-                <select
-                  name="patientId"
-                  value={formData.patientId}
-                  onChange={handleInputChange}
-                  required
-                  className="input-field"
-                  disabled={mode === 'edit'}
-                >
-                  <option value="">Select a patient</option>
-                  {patients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.name} {patient.email ? `(${patient.email})` : ''}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    name="patientId"
+                    value={formData.patientId}
+                    onChange={handleInputChange}
+                    required
+                    className="input-field"
+                    disabled={mode === 'edit' || (mode === 'add' && !!patientId)}
+                  >
+                    <option value="">Select a patient</option>
+                    {patients.map((patient) => (
+                      <option key={patient.id} value={patient.id}>
+                        {patient.name} {patient.email ? `(${patient.email})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {patientId && mode === 'add' && (
+                    <p className="text-xs text-gray-500 mt-1">Patient is pre-selected from profile</p>
+                  )}
+                </>
               )}
               {mode === 'edit' && (
                 <p className="mt-1 text-xs text-gray-500">Patient cannot be changed when editing</p>

@@ -1,7 +1,7 @@
 export const ENV_CONFIG = {
-  API_URL: import.meta.env.VITE_API_URL || 'http://51.20.98.153:3007/api',
-  WS_URL: import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws',
-  NODE_ENV: import.meta.env.MODE || 'development',
+  API_URL: import.meta.env.VITE_API_URL || 'http://3.89.141.154:3007/api',
+  WS_URL: import.meta.env.VITE_WS_URL || 'ws://3.89.141.154:3007/ws',
+  NODE_ENV: import.meta.env.MODE || 'production',
   
   // File Upload
   MAX_FILE_SIZE: parseInt(import.meta.env.VITE_MAX_FILE_SIZE || '10485760'), // 10MB

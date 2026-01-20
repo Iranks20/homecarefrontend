@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   Users,
   UserCheck,
@@ -61,10 +62,15 @@ const STATUS_TONE_CLASSES: Record<NonNullable<SectionItem['statusTone']>, string
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const role = user?.role ?? 'admin';
+  const role = user?.role?.toLowerCase() ?? 'admin';
   const [state, setState] = useState<DashboardState>({ stats: [], sections: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect biller to their dedicated dashboard
+  if (role === 'biller') {
+    return <Navigate to="/biller-dashboard" replace />;
+  }
 
   useEffect(() => {
     let ignore = false;
@@ -81,6 +87,15 @@ export default function Dashboard() {
         const today = new Date().toISOString().split('T')[0];
 
         // Patient role not supported in current system
+
+        // Biller is redirected to their dedicated dashboard (handled above)
+        if (role === 'biller') {
+          if (!ignore) {
+            setState({ stats: [], sections: [] });
+            setLoading(false);
+          }
+          return;
+        }
 
         if (role === 'nurse') {
           const [appointmentsResponse, notificationsResponse, trainingResponse, certificatesResponse] = await Promise.all([
@@ -199,7 +214,249 @@ export default function Dashboard() {
           return;
         }
 
-        // Physiotherapist role not supported in current system
+        // Receptionist role
+        if (role === 'receptionist') {
+          const [dashboardAnalytics, upcomingAppointmentsResponse, notificationsResponse] = await Promise.allSettled([
+            analyticsService.getDashboardAnalytics(),
+            appointmentService.getAppointments({ limit: 10 }),
+            notificationService.getNotifications({ limit: 5 }),
+          ]);
+
+          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value : { totalPatients: 0, totalAppointments: 0, todayAppointments: 0, pendingInvoices: 0, upcomingAppointments: [] };
+          const appointments = upcomingAppointmentsResponse.status === 'fulfilled' ? upcomingAppointmentsResponse.value : { appointments: [] };
+          const notifications = notificationsResponse.status === 'fulfilled' ? notificationsResponse.value : { data: [] };
+
+          const stats: Stat[] = [
+            {
+              name: 'Total Patients',
+              value: analytics.totalPatients ?? analytics.activePatients ?? 0,
+              icon: Users,
+              color: 'text-blue-600',
+              bgColor: 'bg-blue-100',
+            },
+            {
+              name: 'Active Patients',
+              value: analytics.activePatients ?? analytics.totalPatients ?? 0,
+              icon: UserCheck,
+              color: 'text-indigo-600',
+              bgColor: 'bg-indigo-100',
+            },
+            {
+              name: 'Today\'s Appointments',
+              value: analytics.todayAppointments ?? 0,
+              icon: Calendar,
+              color: 'text-purple-600',
+              bgColor: 'bg-purple-100',
+            },
+            {
+              name: 'Total Appointments',
+              value: analytics.totalAppointments ?? 0,
+              icon: Clock,
+              color: 'text-green-600',
+              bgColor: 'bg-green-100',
+            },
+            {
+              name: 'Pending Invoices',
+              value: analytics.pendingInvoices ?? 0,
+              icon: CreditCard,
+              color: 'text-orange-600',
+              bgColor: 'bg-orange-100',
+            },
+          ];
+
+          const sections: Section[] = [
+            {
+              title: 'Upcoming Appointments',
+              icon: Clock,
+              items: (analytics.upcomingAppointments ?? []).slice(0, 5).map((appointment: any) => ({
+                id: appointment.id,
+                primary: appointment.service?.name ?? 'Appointment',
+                secondary: `${appointment.patient?.name ?? 'Unknown'} • ${new Date(appointment.date).toLocaleDateString()}`,
+                meta: appointment.status,
+                statusLabel: appointment.status,
+                statusTone: appointment.status === 'CANCELLED' ? 'error' : appointment.status === 'CONFIRMED' ? 'success' : 'warning',
+              })),
+              emptyText: 'No upcoming appointments.',
+            },
+            {
+              title: 'Recent Appointments',
+              icon: Calendar,
+              items: appointments.appointments.slice(0, 5).map((appointment: any) => ({
+                id: appointment.id,
+                primary: appointment.serviceName ?? 'Appointment',
+                secondary: `${appointment.patientName ?? 'Unknown'} • ${appointment.date ?? ''} ${appointment.time ?? ''}`,
+                meta: appointment.status,
+                statusLabel: appointment.status,
+                statusTone: appointment.status === 'cancelled' ? 'error' : appointment.status === 'confirmed' ? 'success' : 'warning',
+              })),
+              emptyText: 'No recent appointments.',
+            },
+            {
+              title: 'Announcements',
+              icon: Bell,
+              items: (notifications.data ?? []).slice(0, 5).map((notification: any) => ({
+                id: notification.id,
+                primary: notification.title,
+                secondary: notification.message,
+                meta: new Date(notification.date ?? Date.now()).toLocaleString(),
+              })),
+              emptyText: 'No announcements available.',
+            },
+          ];
+
+          if (!ignore) {
+            setState({ stats, sections });
+          }
+          return;
+        }
+
+        // Doctor role
+        if (role === 'doctor') {
+          const [dashboardAnalytics, notificationsResponse] = await Promise.allSettled([
+            analyticsService.getDashboardAnalytics(),
+            notificationService.getNotifications({ limit: 5 }),
+          ]);
+
+          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value : { assignedPatients: 0, totalAppointments: 0, todayAppointments: 0, pendingReferrals: 0, recentPatients: [] };
+          const notifications = notificationsResponse.status === 'fulfilled' ? notificationsResponse.value : { data: [] };
+
+          const stats: Stat[] = [
+            {
+              name: 'Assigned Patients',
+              value: analytics.assignedPatients ?? 0,
+              icon: Users,
+              color: 'text-blue-600',
+              bgColor: 'bg-blue-100',
+            },
+            {
+              name: 'Today\'s Appointments',
+              value: analytics.todayAppointments ?? 0,
+              icon: Calendar,
+              color: 'text-purple-600',
+              bgColor: 'bg-purple-100',
+            },
+            {
+              name: 'Total Appointments',
+              value: analytics.totalAppointments ?? 0,
+              icon: Clock,
+              color: 'text-green-600',
+              bgColor: 'bg-green-100',
+            },
+            {
+              name: 'Pending Referrals',
+              value: analytics.pendingReferrals ?? 0,
+              icon: FileText,
+              color: 'text-orange-600',
+              bgColor: 'bg-orange-100',
+            },
+          ];
+
+          const sections: Section[] = [
+            {
+              title: 'Recent Patients',
+              icon: Users,
+              items: (analytics.recentPatients ?? []).slice(0, 5).map((patient: any) => ({
+                id: patient.id,
+                primary: patient.name,
+                secondary: patient.condition ?? 'No condition specified',
+                meta: patient.status,
+                statusLabel: patient.status,
+                statusTone: patient.status === 'ACTIVE' ? 'success' : 'info',
+              })),
+              emptyText: 'No patients assigned.',
+            },
+            {
+              title: 'Announcements',
+              icon: Bell,
+              items: (notifications.data ?? []).slice(0, 5).map((notification: any) => ({
+                id: notification.id,
+                primary: notification.title,
+                secondary: notification.message,
+                meta: new Date(notification.date ?? Date.now()).toLocaleString(),
+              })),
+              emptyText: 'No announcements available.',
+            },
+          ];
+
+          if (!ignore) {
+            setState({ stats, sections });
+          }
+          return;
+        }
+
+        // Specialist role
+        if (role === 'specialist') {
+          const [dashboardAnalytics, notificationsResponse] = await Promise.allSettled([
+            analyticsService.getDashboardAnalytics(),
+            notificationService.getNotifications({ limit: 5 }),
+          ]);
+
+          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value : { assignedPatients: 0, totalAppointments: 0, todayAppointments: 0, readyForDischarge: 0, recentPatients: [] };
+          const notifications = notificationsResponse.status === 'fulfilled' ? notificationsResponse.value : { data: [] };
+
+          const stats: Stat[] = [
+            {
+              name: 'Assigned Patients',
+              value: analytics.assignedPatients ?? 0,
+              icon: Users,
+              color: 'text-blue-600',
+              bgColor: 'bg-blue-100',
+            },
+            {
+              name: 'Today\'s Appointments',
+              value: analytics.todayAppointments ?? 0,
+              icon: Calendar,
+              color: 'text-purple-600',
+              bgColor: 'bg-purple-100',
+            },
+            {
+              name: 'Total Appointments',
+              value: analytics.totalAppointments ?? 0,
+              icon: Clock,
+              color: 'text-green-600',
+              bgColor: 'bg-green-100',
+            },
+            {
+              name: 'Ready for Discharge',
+              value: analytics.readyForDischarge ?? 0,
+              icon: Target,
+              color: 'text-orange-600',
+              bgColor: 'bg-orange-100',
+            },
+          ];
+
+          const sections: Section[] = [
+            {
+              title: 'Recent Patients',
+              icon: Users,
+              items: (analytics.recentPatients ?? []).slice(0, 5).map((patient: any) => ({
+                id: patient.id,
+                primary: patient.name,
+                secondary: patient.condition ?? 'No condition specified',
+                meta: patient.status,
+                statusLabel: patient.status,
+                statusTone: patient.status === 'ACTIVE' ? 'success' : 'info',
+              })),
+              emptyText: 'No patients referred.',
+            },
+            {
+              title: 'Announcements',
+              icon: Bell,
+              items: (notifications.data ?? []).slice(0, 5).map((notification: any) => ({
+                id: notification.id,
+                primary: notification.title,
+                secondary: notification.message,
+                meta: new Date(notification.date ?? Date.now()).toLocaleString(),
+              })),
+              emptyText: 'No announcements available.',
+            },
+          ];
+
+          if (!ignore) {
+            setState({ stats, sections });
+          }
+          return;
+        }
 
         // Admin (default)
         const [dashboardAnalytics, upcomingAppointmentsResponse, remindersResponse, notificationsResponse] = await Promise.allSettled([
@@ -220,28 +477,28 @@ export default function Dashboard() {
         const stats: Stat[] = [
           {
             name: 'Total Patients',
-            value: analytics.totalPatients,
+            value: analytics.totalPatients ?? 0,
             icon: Users,
             color: 'text-blue-600',
             bgColor: 'bg-blue-100',
           },
           {
             name: 'Total Appointments',
-            value: analytics.totalAppointments,
+            value: analytics.totalAppointments ?? 0,
             icon: Calendar,
             color: 'text-purple-600',
             bgColor: 'bg-purple-100',
           },
           {
             name: 'Active Nurses',
-            value: analytics.totalNurses,
+            value: analytics.totalNurses ?? 0,
             icon: UserCheck,
             color: 'text-green-600',
             bgColor: 'bg-green-100',
           },
           {
             name: 'Total Revenue',
-            value: `$${analytics.totalRevenue.toLocaleString()}`,
+            value: `$${(analytics.totalRevenue ?? 0).toLocaleString()}`,
             icon: CreditCard,
             color: 'text-orange-600',
             bgColor: 'bg-orange-100',
@@ -252,7 +509,7 @@ export default function Dashboard() {
           {
             title: 'Recent Appointments',
             icon: Calendar,
-            items: analytics.recentAppointments.slice(0, 5).map((appointment: any) => ({
+            items: (analytics.recentAppointments ?? []).slice(0, 5).map((appointment: any) => ({
               id: appointment.id,
               primary: appointment.service?.name ?? 'Appointment',
               secondary: `${appointment.patient?.name ?? 'Unknown patient'} • ${new Date(appointment.date).toLocaleDateString()}`,
@@ -337,6 +594,26 @@ export default function Dashboard() {
         return {
           title: 'Nurse Dashboard',
           subtitle: 'Manage your patients and schedule',
+        };
+      case 'receptionist':
+        return {
+          title: 'Receptionist Dashboard',
+          subtitle: 'Manage patients, appointments, and billing',
+        };
+      case 'doctor':
+        return {
+          title: 'Doctor Dashboard',
+          subtitle: 'Review patients and manage referrals',
+        };
+      case 'specialist':
+        return {
+          title: 'Specialist Dashboard',
+          subtitle: 'Treat patients and prepare for discharge',
+        };
+      case 'biller':
+        return {
+          title: 'Biller Dashboard',
+          subtitle: 'Manage patient bills and payments',
         };
       default:
         return {

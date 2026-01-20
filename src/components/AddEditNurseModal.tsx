@@ -7,6 +7,7 @@ import { API_ENDPOINTS } from '../config/api';
 export interface NurseFormValues {
   name: string;
   email: string;
+  password: string;
   phone: string;
   licenseNumber: string;
   specialization: string;
@@ -28,6 +29,7 @@ interface AddEditNurseModalProps {
 const DEFAULT_FORM: NurseFormValues = {
   name: '',
   email: '',
+  password: '',
   phone: '',
   licenseNumber: '',
   specialization: '',
@@ -69,6 +71,7 @@ export default function AddEditNurseModal({
       setFormData({
         name: nurse.name,
         email: nurse.email,
+        password: '', // Don't show password when editing
         phone: nurse.phone,
         licenseNumber: nurse.licenseNumber,
         specialization: nurse.specialization,
@@ -84,7 +87,7 @@ export default function AddEditNurseModal({
       if (nurse.avatar) {
         const avatarUrl = nurse.avatar.startsWith('http') 
           ? nurse.avatar 
-          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007'}${nurse.avatar.startsWith('/') ? nurse.avatar : '/' + nurse.avatar}`;
+          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${nurse.avatar.startsWith('/') ? nurse.avatar : '/' + nurse.avatar}`;
         setAvatarPreview(avatarUrl);
       } else {
         setAvatarPreview(null);
@@ -185,7 +188,7 @@ export default function AddEditNurseModal({
           }));
           
           // Update preview with full URL for display
-          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.98.153:3007';
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007';
           const previewUrl = `${baseUrl}${avatarPath}`;
           setAvatarPreview(previewUrl);
         }
@@ -212,6 +215,20 @@ export default function AddEditNurseModal({
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
+
+    // Validate password for new nurses
+    if (mode === 'add' && (!formData.password || formData.password.length < 8)) {
+      setError('Password must be at least 8 characters long.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate password if provided during edit
+    if (mode === 'edit' && formData.password && formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       await onSave(formData);
@@ -287,7 +304,43 @@ export default function AddEditNurseModal({
                   className="input-field mt-1"
                   placeholder="sarah@example.com"
                 />
+                <p className="text-xs text-gray-500 mt-1">This will be used for login</p>
               </div>
+              {mode === 'add' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Password<span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    required
+                    minLength={8}
+                    className="input-field mt-1"
+                    placeholder="Minimum 8 characters"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Provide this to the nurse for login</p>
+                </div>
+              )}
+              {mode === 'edit' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    New Password (optional)
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    minLength={8}
+                    className="input-field mt-1"
+                    placeholder="Leave blank to keep current password"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Only fill if you want to change the password</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Phone number<span className="text-red-500">*</span>

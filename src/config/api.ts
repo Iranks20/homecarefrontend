@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://51.20.98.153:3007/api',
+  BASE_URL: import.meta.env.VITE_API_URL || 'http://3.89.141.154:3007/api',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
@@ -69,6 +69,18 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `/v1/specialists/${id}`,
     AVAILABILITY: (id: string) => `/v1/specialists/${id}/availability`,
     SPECIALIZATIONS: '/v1/specialists/specializations',
+  },
+  
+  // Therapists
+  THERAPISTS: {
+    BASE: '/v1/therapists',
+    BY_ID: (id: string) => `/v1/therapists/${id}`,
+  },
+  
+  // Specializations
+  SPECIALIZATIONS: {
+    BASE: '/v1/specializations',
+    BY_ID: (id: string) => `/v1/specializations/${id}`,
   },
   
   // Appointments

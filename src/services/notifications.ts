@@ -64,7 +64,16 @@ export class NotificationService {
       API_ENDPOINTS.NOTIFICATIONS.BASE,
       { params }
     );
-    return response.data;
+    // API returns { success: true, data: [...], pagination: {...} }
+    // But we expect PaginatedResponse which is { data: [...], pagination: {...} }
+    if (response.success && Array.isArray(response.data) && response.pagination) {
+      return {
+        data: response.data,
+        pagination: response.pagination,
+      };
+    }
+    // Fallback to original structure if already in correct format
+    return response.data || response;
   }
 
   async getNotification(id: string): Promise<Notification> {

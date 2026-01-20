@@ -79,11 +79,11 @@ Create a `.env` file in the root directory:
 
 ```env
 # API Configuration
-VITE_API_URL=http://51.20.98.153:3007/api
+VITE_API_URL=http://51.20.55.20:3007/api
 VITE_WS_URL=ws://localhost:3001/ws
 
 # Upload Configuration
-VITE_UPLOAD_URL=http://51.20.98.153:3007/api/upload
+VITE_UPLOAD_URL=http://51.20.55.20:3007/api/upload
 
 # App Configuration
 VITE_APP_NAME=Teamwork Homecare

@@ -20,7 +20,7 @@ import Services from './pages/Services';
 import Billing from './pages/Billing';
 import Reports from './pages/Reports';
 import UsersPage from './pages/Users';
-import Doctors from './pages/Doctors';
+import Therapists from './pages/Therapists';
 
 // New pages to be created
 import BookAppointment from './pages/BookAppointment';
@@ -35,6 +35,8 @@ import Specialists from './pages/Specialists';
 import Settings from './pages/Settings';
 import PhoneReminders from './pages/PhoneReminders';
 import HealthRecords from './pages/HealthRecords';
+import BillerDashboard from './pages/BillerDashboard';
+import Billers from './pages/Billers';
 
 
 function AppContent() {
@@ -61,6 +63,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/biller-dashboard" element={<BillerDashboard />} />
           
           {/* Patient Routes */}
           <Route path="/book-appointment" element={<BookAppointment />} />
@@ -79,8 +82,9 @@ function AppContent() {
           <Route path="/nurses" element={<Nurses />} />
           <Route path="/nurses/:id" element={<NurseProfile />} />
           <Route path="/users" element={<UsersPage />} />
-          <Route path="/doctors" element={<Doctors />} />
           <Route path="/specialists" element={<Specialists />} />
+          <Route path="/therapists" element={<Therapists />} />
+          <Route path="/billers" element={<Billers />} />
           
           {/* Shared Routes */}
           <Route path="/health-records" element={<HealthRecords />} />
@@ -108,19 +112,19 @@ function App() {
       <NotificationProvider>
         <AuthProvider>
           <AppContent />
+          <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+          />
         </AuthProvider>
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
       </NotificationProvider>
     </ErrorBoundary>
   );

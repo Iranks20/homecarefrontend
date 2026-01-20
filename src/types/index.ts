@@ -2,11 +2,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'receptionist' | 'doctor' | 'specialist' | 'nurse';
+  role: 'admin' | 'receptionist' | 'specialist' | 'therapist' | 'nurse' | 'biller';
   roleCode?: string;
   // Specialization fields
-  doctorSpecialization?: 'neurologist' | 'orthopedist' | 'physiotherapist';
-  specialistType?: 'speech-therapist' | 'geriatrician' | 'occupational-therapist';
+  specialistSpecialization?: string;
+  therapistSpecialization?: string;
   avatar?: string;
   phone?: string;
   department?: string;
@@ -41,6 +41,11 @@ export interface Patient {
   address: string;
   condition: string;
   // Assignment fields for workflow
+  assignedSpecialistId?: string;
+  assignedSpecialistName?: string;
+  assignedTherapistId?: string;
+  assignedTherapistName?: string;
+  // Legacy fields for backward compatibility (deprecated)
   assignedDoctorId?: string;
   assignedDoctorName?: string;
   referredSpecialistId?: string;
@@ -60,9 +65,11 @@ export interface Patient {
   emergencyPhone?: string;
   currentMedications?: string;
   allergies?: string;
+  paymentType?: 'CASH' | 'INSURANCE';
   insuranceProvider?: string;
   insuranceNumber?: string;
   referralSource?: string;
+  serviceIds?: string[];
 }
 
 export interface MedicalRecord {
@@ -758,6 +765,8 @@ export interface HealthRecordUpdate {
     temperature?: number;
     weight?: number;
     height?: number;
+    bmi?: number;
+    bmiCategory?: string;
     bloodSugar?: number;
     oxygenSaturation?: number;
     medication?: string;

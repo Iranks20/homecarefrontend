@@ -18,6 +18,11 @@ export interface CreateUserPayload {
   role: User['role'];
   phone?: string;
   department?: string;
+  specialistSpecialization?: string;
+  therapistSpecialization?: string;
+  licenseNumber?: string;
+  avatar?: string;
+  isActive?: boolean;
 }
 
 export interface UpdateUserPayload {
@@ -26,14 +31,20 @@ export interface UpdateUserPayload {
   phone?: string;
   department?: string;
   password?: string;
+  specialistSpecialization?: string;
+  therapistSpecialization?: string;
+  licenseNumber?: string;
+  avatar?: string;
+  isActive?: boolean;
 }
 
 const ROLE_SLUGS: User['role'][] = [
   'admin',
   'receptionist',
-  'doctor',
   'specialist',
+  'therapist',
   'nurse',
+  'biller',
 ];
 
 function normalizeRole(role?: string): User['role'] {
@@ -52,9 +63,10 @@ function normalizeRole(role?: string): User['role'] {
   const enumMap: Record<string, User['role']> = {
     ADMIN: 'admin',
     RECEPTIONIST: 'receptionist',
-    DOCTOR: 'doctor',
     SPECIALIST: 'specialist',
+    THERAPIST: 'therapist',
     NURSE: 'nurse',
+    BILLER: 'biller',
   };
 
   return enumMap[enumNormalized] ?? 'admin';
@@ -64,11 +76,12 @@ function serializeRole(role: User['role']): string {
   const map: Record<User['role'], string> = {
     admin: 'ADMIN',
     receptionist: 'RECEPTIONIST',
-    doctor: 'DOCTOR',
     specialist: 'SPECIALIST',
+    therapist: 'THERAPIST',
     nurse: 'NURSE',
+    biller: 'BILLER',
   };
-  return map[role] ?? 'PATIENT';
+  return map[role] ?? 'ADMIN';
 }
 
 function normalizeUser(user: any): User {
@@ -84,8 +97,8 @@ function normalizeUser(user: any): User {
     email: user.email,
     role,
     roleCode: user.roleCode,
-    doctorSpecialization: user.doctorSpecialization,
-    specialistType: user.specialistType,
+    specialistSpecialization: user.specialistSpecialization ?? user.doctorSpecialization,
+    therapistSpecialization: user.therapistSpecialization,
     avatar: user.avatar,
     phone: user.phone ?? user.phoneNumber,
     department: user.department,
