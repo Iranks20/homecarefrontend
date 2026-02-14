@@ -11,9 +11,9 @@ export interface UserQueryParams {
 }
 
 export interface CreateUserPayload {
+  username: string;
   name: string;
   email: string;
-  // Frontend always validates password, but make it optional in the type so it can be omitted on updates.
   password?: string;
   role: User['role'];
   phone?: string;
@@ -26,6 +26,7 @@ export interface CreateUserPayload {
 }
 
 export interface UpdateUserPayload {
+  username?: string;
   name?: string;
   email?: string;
   phone?: string;
@@ -45,6 +46,7 @@ const ROLE_SLUGS: User['role'][] = [
   'therapist',
   'nurse',
   'biller',
+  'lab_attendant',
 ];
 
 function normalizeRole(role?: string): User['role'] {
@@ -67,6 +69,7 @@ function normalizeRole(role?: string): User['role'] {
     THERAPIST: 'therapist',
     NURSE: 'nurse',
     BILLER: 'biller',
+    LAB_ATTENDANT: 'lab_attendant',
   };
 
   return enumMap[enumNormalized] ?? 'admin';
@@ -80,6 +83,7 @@ function serializeRole(role: User['role']): string {
     therapist: 'THERAPIST',
     nurse: 'NURSE',
     biller: 'BILLER',
+    lab_attendant: 'LAB_ATTENDANT',
   };
   return map[role] ?? 'ADMIN';
 }
@@ -93,6 +97,7 @@ function normalizeUser(user: any): User {
 
   return {
     id: user.id,
+    username: user.username,
     name: user.name ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
     email: user.email,
     role,
@@ -167,6 +172,7 @@ export class UserService {
   async createUser(payload: CreateUserPayload): Promise<User> {
     const response = await apiService.post<User>(API_ENDPOINTS.USERS.BASE, {
       ...payload,
+      username: payload.username?.trim().toLowerCase() ?? payload.username,
       role: serializeRole(payload.role),
     });
     const data = response.data ?? response;

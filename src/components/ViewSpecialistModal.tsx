@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, User, Mail, Phone, Award, Briefcase, DollarSign, Calendar, Clock, FileText } from 'lucide-react';
 import { Specialist } from '../types';
+import { getAssetUrl } from '../config/api';
 
 interface ViewSpecialistModalProps {
   isOpen: boolean;
@@ -63,7 +64,7 @@ export default function ViewSpecialistModal({
   const avatarUrl = specialist.avatar
     ? specialist.avatar.startsWith('http')
       ? specialist.avatar
-      : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${specialist.avatar.startsWith('/') ? specialist.avatar : '/' + specialist.avatar}`
+      : getAssetUrl(specialist.avatar)
     : null;
 
   return (

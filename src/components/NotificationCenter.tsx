@@ -157,7 +157,7 @@ export default function NotificationCenter() {
                             </p>
                             <div className="flex items-center space-x-2">
                               <span className="text-xs text-gray-500">
-                                {formatTime(notification.date || notification.createdAt || new Date().toISOString())}
+                                {formatTime(notification.date || new Date().toISOString())}
                               </span>
                               <button
                                 onClick={() => removeNotification(notification.id)}

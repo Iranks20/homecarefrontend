@@ -278,7 +278,7 @@ class ApiService {
     this.removeRefreshToken();
   }
 
-  public async login(credentials: { email: string; password: string }) {
+  public async login(credentials: { username: string; password: string }) {
     const response = await this.client.post<ApiResponse<{ accessToken: string; refreshToken: string; expiresIn: number; user: any }>>(
       API_ENDPOINTS.AUTH.LOGIN,
       credentials

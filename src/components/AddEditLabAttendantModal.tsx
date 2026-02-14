@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { User } from '../types';
 
-interface BillerFormValues {
+interface LabAttendantFormValues {
   username: string;
   name: string;
   email: string;
@@ -12,7 +12,7 @@ interface BillerFormValues {
   isActive: boolean;
 }
 
-interface AddEditBillerModalProps {
+interface AddEditLabAttendantModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: {
@@ -23,32 +23,32 @@ interface AddEditBillerModalProps {
     phone?: string;
     department?: string;
     isActive?: boolean;
-    role: User['role'];
+    role?: User['role'];
   }) => Promise<void>;
-  biller?: User | null;
+  labAttendant?: User | null;
   mode: 'add' | 'edit';
 }
 
-export default function AddEditBillerModal({
+export default function AddEditLabAttendantModal({
   isOpen,
   onClose,
   onSave,
-  biller,
+  labAttendant,
   mode,
-}: AddEditBillerModalProps) {
-  const [formData, setFormData] = useState<BillerFormValues>({
+}: AddEditLabAttendantModalProps) {
+  const [formData, setFormData] = useState<LabAttendantFormValues>({
     username: '',
     name: '',
     email: '',
     password: '',
     phone: '',
-    department: 'Finance',
+    department: 'Laboratory',
     isActive: true,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isEdit = mode === 'edit' && biller;
+  const isEdit = mode === 'edit' && labAttendant;
 
   useEffect(() => {
     if (!isOpen) {
@@ -58,15 +58,15 @@ export default function AddEditBillerModal({
   }, [isOpen]);
 
   useEffect(() => {
-    if (isEdit && biller) {
+    if (isEdit && labAttendant) {
       setFormData({
-        username: biller.username || '',
-        name: biller.name || '',
-        email: biller.email || '',
+        username: labAttendant.username || '',
+        name: labAttendant.name || '',
+        email: labAttendant.email || '',
         password: '',
-        phone: biller.phone || '',
-        department: biller.department || 'Finance',
-        isActive: biller.isActive ?? true,
+        phone: labAttendant.phone || '',
+        department: labAttendant.department || 'Laboratory',
+        isActive: labAttendant.isActive ?? true,
       });
     } else {
       setFormData({
@@ -75,11 +75,11 @@ export default function AddEditBillerModal({
         email: '',
         password: '',
         phone: '',
-        department: 'Finance',
+        department: 'Laboratory',
         isActive: true,
       });
     }
-  }, [isEdit, biller, isOpen]);
+  }, [isEdit, labAttendant, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,7 +98,7 @@ export default function AddEditBillerModal({
       return;
     }
     if (!isEdit && !formData.password.trim()) {
-      setError('Password is required for new billers');
+      setError('Password is required for new lab attendants');
       return;
     }
 
@@ -112,7 +112,7 @@ export default function AddEditBillerModal({
         phone?: string;
         department?: string;
         isActive?: boolean;
-        role: User['role'];
+        role?: User['role'];
       } = {
         username: formData.username.trim().toLowerCase(),
         name: formData.name.trim(),
@@ -120,19 +120,18 @@ export default function AddEditBillerModal({
         phone: formData.phone.trim() || undefined,
         department: formData.department.trim() || undefined,
         isActive: formData.isActive,
-        role: 'biller',
+        role: 'lab_attendant',
       };
 
       if (!isEdit) {
         payload.password = formData.password;
       } else if (formData.password.trim()) {
-        // Only include password if it's being changed
         payload.password = formData.password;
       }
 
       await onSave(payload);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to save biller');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save lab attendant');
     } finally {
       setIsSubmitting(false);
     }
@@ -147,12 +146,9 @@ export default function AddEditBillerModal({
         <div className="relative w-full max-w-2xl rounded-lg bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
             <h3 className="text-lg font-semibold text-gray-900">
-              {isEdit ? 'Edit Biller' : 'Add New Biller'}
+              {isEdit ? 'Edit Lab Attendant' : 'Add New Lab Attendant'}
             </h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -160,9 +156,7 @@ export default function AddEditBillerModal({
           <form onSubmit={handleSubmit}>
             <div className="px-6 py-4 space-y-4">
               {error && (
-                <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-                  {error}
-                </div>
+                <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>
               )}
 
               <div>
@@ -173,7 +167,7 @@ export default function AddEditBillerModal({
                   type="text"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  placeholder="e.g. john.doe (used for login)"
+                  placeholder="e.g. lab.john (used for login)"
                   className="input-field disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   required
                   disabled={mode === 'edit'}
@@ -191,7 +185,7 @@ export default function AddEditBillerModal({
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter full name (e.g., John Doe)"
+                  placeholder="Enter full name"
                   className="input-field"
                   required
                 />
@@ -205,7 +199,7 @@ export default function AddEditBillerModal({
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="biller@example.com"
+                  placeholder="lab@example.com"
                   className="input-field disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   required
                   disabled={mode === 'edit'}
@@ -223,39 +217,30 @@ export default function AddEditBillerModal({
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder={isEdit ? 'Enter new password (leave blank to keep current)' : 'Enter password (minimum 8 characters)'}
+                  placeholder={isEdit ? 'Leave blank to keep current' : 'Minimum 8 characters'}
                   className="input-field"
                   required={!isEdit}
                 />
-                {isEdit ? (
-                  <p className="mt-1.5 text-xs text-gray-500">Leave blank to keep current password</p>
-                ) : (
-                  <p className="mt-1.5 text-xs text-gray-500">Password must be at least 8 characters long</p>
-                )}
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Phone Number
-                </label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Phone Number</label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+1234567890 (optional)"
+                  placeholder="+1234567890"
                   className="input-field"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Department
-                </label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Department</label>
                 <input
                   type="text"
                   value={formData.department}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  placeholder="Finance (default)"
+                  placeholder="Laboratory"
                   className="input-field"
                 />
               </div>
@@ -271,7 +256,6 @@ export default function AddEditBillerModal({
                 <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900">
                   Active Status
                 </label>
-                <span className="ml-2 text-xs text-gray-500">(Biller can log in and access the system)</span>
               </div>
             </div>
 
@@ -286,10 +270,10 @@ export default function AddEditBillerModal({
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
+                className="btn-primary"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Saving...' : isEdit ? 'Update Biller' : 'Add Biller'}
+                {isSubmitting ? 'Saving...' : isEdit ? 'Update Lab Attendant' : 'Add Lab Attendant'}
               </button>
             </div>
           </form>

@@ -33,7 +33,7 @@ export default function Users() {
 
   // Only admins can manage users (doctors, specialists, nurses)
   const isAdmin = user?.role === 'admin';
-  const isViewingRestrictedRole = roleFilter === 'doctor' || roleFilter === 'specialist' || roleFilter === 'nurse';
+  const isViewingRestrictedRole = roleFilter === 'specialist' || roleFilter === 'nurse';
   const canManage = isAdmin || !isViewingRestrictedRole;
 
   const { addNotification } = useNotifications();
@@ -219,25 +219,30 @@ export default function Users() {
   ];
 
   const getPageTitle = () => {
-    if (roleFilter === 'doctor') return 'Doctors';
-    if (roleFilter === 'specialist') return 'Specialists';
-    if (roleFilter === 'nurse') return 'Nurses';
-    if (roleFilter === 'receptionist') return 'Receptionists';
-    if (roleFilter === 'admin') return 'Administrators';
+    const filter = roleFilter as User['role'] | 'all';
+    if (filter === 'specialist') return 'Specialists';
+    if (filter === 'nurse') return 'Nurses';
+    if (filter === 'receptionist') return 'Receptionists';
+    if (filter === 'admin') return 'Administrators';
+    if (filter === 'therapist') return 'Therapists';
+    if (filter === 'biller') return 'Billers';
     return 'User Management';
   };
 
   const getPageDescription = () => {
-    if (roleFilter === 'doctor') return 'Manage doctors and their specializations.';
-    if (roleFilter === 'specialist') return 'Manage specialists and their expertise.';
-    if (roleFilter === 'nurse') return 'Manage nurses and their assignments.';
-    if (roleFilter === 'receptionist') return 'Manage receptionist staff.';
-    if (roleFilter === 'admin') return 'Manage system administrators.';
+    const filter = roleFilter as User['role'] | 'all';
+    if (filter === 'specialist') return 'Manage specialists and their specializations.';
+    if (filter === 'nurse') return 'Manage nurses and their assignments.';
+    if (filter === 'receptionist') return 'Manage receptionist staff.';
+    if (filter === 'admin') return 'Manage system administrators.';
+    if (filter === 'therapist') return 'Manage therapists and their specializations.';
+    if (filter === 'biller') return 'Manage billing staff.';
     return 'Provision and manage staff and patient access.';
   };
 
   const getPageIcon = () => {
-    if (roleFilter === 'doctor') return Stethoscope;
+    const filter = roleFilter as User['role'] | 'all';
+    if (filter === 'specialist') return Stethoscope;
     return Shield;
   };
 

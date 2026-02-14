@@ -26,7 +26,8 @@ import {
   Zap,
   Phone,
   Heart,
-  Shield
+  Shield,
+  TestTube
 } from 'lucide-react';
 import { User as UserType } from '../types';
 
@@ -56,10 +57,9 @@ const getNavigationForRole = (role: string) => {
     ...baseNavigation,
     { name: 'My Schedule', href: '/my-schedule', icon: Calendar },
     { name: 'Patients', href: '/patients', icon: UserCheck },
+    { name: 'Investigations', href: '/investigations', icon: TestTube },
     { name: 'Clinical Documentation', href: '/health-records', icon: FileText },
     { name: 'Schedule Session', href: '/scheduling', icon: Calendar },
-    // TODO: Re-enable Communication feature in the future
-    // { name: 'Communication', href: '/communication', icon: MessageSquare },
   ];
 
   // Specialist navigation - treat patients and prepare for discharge
@@ -67,10 +67,9 @@ const getNavigationForRole = (role: string) => {
     ...baseNavigation,
     { name: 'My Schedule', href: '/my-schedule', icon: Calendar },
     { name: 'Patients', href: '/patients', icon: UserCheck },
+    { name: 'Investigations', href: '/investigations', icon: TestTube },
     { name: 'Clinical Documentation', href: '/health-records', icon: FileText },
     { name: 'Schedule Session', href: '/scheduling', icon: Calendar },
-    // TODO: Re-enable Communication feature in the future
-    // { name: 'Communication', href: '/communication', icon: MessageSquare },
   ];
 
   // Nurse navigation - vitals recording and patient management
@@ -82,12 +81,15 @@ const getNavigationForRole = (role: string) => {
   const adminNavigation = [
     ...baseNavigation,
     { name: 'Patients', href: '/patients', icon: UserCheck },
+    { name: 'Receptionists', href: '/receptionists', icon: Users },
     { name: 'Specialists', href: '/specialists', icon: Activity },
     { name: 'Therapists', href: '/therapists', icon: Stethoscope },
     { name: 'Nurses', href: '/nurses', icon: Heart },
+    { name: 'Lab Attendants', href: '/lab-attendants', icon: TestTube },
     { name: 'Billers', href: '/billers', icon: CreditCard },
     { name: 'Scheduling', href: '/scheduling', icon: Calendar },
     { name: 'Services', href: '/services', icon: Package },
+    { name: 'Investigations', href: '/investigations', icon: TestTube },
     { name: 'Clinical Documentation', href: '/health-records', icon: FileText },
     { name: 'Billing', href: '/billing', icon: CreditCard },
     { name: 'Reports & Analytics', href: '/reports', icon: BarChart3 },
@@ -100,6 +102,13 @@ const getNavigationForRole = (role: string) => {
     ...baseNavigation,
     { name: 'Services', href: '/services', icon: Package },
     { name: 'Billing', href: '/billing', icon: CreditCard },
+  ];
+
+  // Lab attendant - investigations and lab samples
+  const labAttendantNavigation = [
+    ...baseNavigation,
+    { name: 'Investigations', href: '/investigations', icon: TestTube },
+    { name: 'Health Records & Lab', href: '/health-records', icon: FileText },
   ];
 
   switch (role) {
@@ -115,6 +124,8 @@ const getNavigationForRole = (role: string) => {
       return adminNavigation;
     case 'biller':
       return billerNavigation;
+    case 'lab_attendant':
+      return labAttendantNavigation;
     default:
       return baseNavigation;
   }

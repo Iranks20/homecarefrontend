@@ -7,6 +7,7 @@ import AddEditNurseModal, { type NurseFormValues } from '../components/AddEditNu
 import nurseService from '../services/nurses';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { getAssetUrl } from '../config/api';
 
 export default function Nurses() {
   const { user } = useAuth();
@@ -267,9 +268,7 @@ export default function Nurses() {
                       <div className="flex items-center">
                         {nurse.avatar ? (
                           <img
-                            src={nurse.avatar.startsWith('http') 
-                              ? nurse.avatar 
-                              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${nurse.avatar.startsWith('/') ? nurse.avatar : '/' + nurse.avatar}`}
+                            src={nurse.avatar.startsWith('http') ? nurse.avatar : getAssetUrl(nurse.avatar)}
                             alt={nurse.name}
                             className="h-10 w-10 rounded-full object-cover"
                           />

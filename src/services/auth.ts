@@ -4,7 +4,7 @@ import { User } from '../types';
 import { sessionService } from './sessions';
 
 export interface LoginCredentials {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -36,7 +36,6 @@ export interface PasswordResetConfirm {
 const ROLE_SLUGS: ReadonlyArray<User['role']> = [
   'admin',
   'receptionist',
-  'doctor',
   'specialist',
   'nurse',
   'biller',
@@ -45,7 +44,6 @@ const ROLE_SLUGS: ReadonlyArray<User['role']> = [
 const ROLE_CODE_MAP: Record<string, User['role']> = {
   ADMIN: 'admin',
   RECEPTIONIST: 'receptionist',
-  DOCTOR: 'doctor',
   SPECIALIST: 'specialist',
   NURSE: 'nurse',
   BILLER: 'biller',

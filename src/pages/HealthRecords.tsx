@@ -94,6 +94,8 @@ export default function HealthRecords() {
 
   const { addNotification } = useNotifications();
   const { user } = useAuth();
+  // Only admin can edit, verify, or delete health records (receptionists/nurses add; others view only)
+  const canEditRecords = user?.role === 'admin';
 
   const loadRecords = async () => {
     setRecordsLoading(true);
@@ -746,29 +748,33 @@ export default function HealthRecords() {
                               <Eye className="mr-1 inline h-4 w-4" />
                               View
                             </button>
-                            <button
-                              onClick={() => setEditingRecord(record)}
-                              className="text-secondary-600 hover:text-secondary-900"
-                            >
-                              <Edit className="mr-1 inline h-4 w-4" />
-                              Edit
-                            </button>
-                            {!record.verified && (
-                              <button
-                                onClick={() => handleVerifyRecord(record)}
-                                className="text-green-600 hover:text-green-900"
-                              >
-                                <CheckCircle className="mr-1 inline h-4 w-4" />
-                                Verify
-                              </button>
+                            {canEditRecords && (
+                              <>
+                                <button
+                                  onClick={() => setEditingRecord(record)}
+                                  className="text-secondary-600 hover:text-secondary-900"
+                                >
+                                  <Edit className="mr-1 inline h-4 w-4" />
+                                  Edit
+                                </button>
+                                {!record.verified && (
+                                  <button
+                                    onClick={() => handleVerifyRecord(record)}
+                                    className="text-green-600 hover:text-green-900"
+                                  >
+                                    <CheckCircle className="mr-1 inline h-4 w-4" />
+                                    Verify
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteRecord(record)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  <Trash2 className="mr-1 inline h-4 w-4" />
+                                  Delete
+                                </button>
+                              </>
                             )}
-                            <button
-                              onClick={() => handleDeleteRecord(record)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <Trash2 className="mr-1 inline h-4 w-4" />
-                              Delete
-                            </button>
                           </div>
                         </td>
                       </tr>

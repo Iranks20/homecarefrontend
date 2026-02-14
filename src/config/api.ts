@@ -1,9 +1,20 @@
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3007/api';
+
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://3.89.141.154:3007/api',
+  BASE_URL,
+  /** Origin for assets (avatars, uploads). Same host as API, no /api path. */
+  API_ORIGIN: BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:3007',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
 };
+
+/** Build full URL for an asset path (e.g. avatar). Path can be with or without leading slash. */
+export function getAssetUrl(path: string): string {
+  if (!path) return '';
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return `${API_CONFIG.API_ORIGIN}${normalized}`;
+}
 
 export const API_ENDPOINTS = {
   // Authentication
@@ -243,6 +254,11 @@ export const API_ENDPOINTS = {
     RESULT_BY_ID: (id: string) => `/v1/lab/results/${id}`,
     COLLECT: '/v1/lab/collect',
     UPDATE_STATUS: (id: string) => `/v1/lab/samples/${id}/status`,
+  },
+
+  INVESTIGATION_REQUESTS: {
+    BASE: '/v1/investigation-requests',
+    BY_ID: (id: string) => `/v1/investigation-requests/${id}`,
   },
   
   REFERRALS: {

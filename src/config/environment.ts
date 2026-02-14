@@ -1,6 +1,8 @@
+import { API_CONFIG } from './api';
+
 export const ENV_CONFIG = {
-  API_URL: import.meta.env.VITE_API_URL || 'http://3.89.141.154:3007/api',
-  WS_URL: import.meta.env.VITE_WS_URL || 'ws://3.89.141.154:3007/ws',
+  API_URL: API_CONFIG.BASE_URL,
+  WS_URL: import.meta.env.VITE_WS_URL || 'ws://localhost:3007/ws',
   NODE_ENV: import.meta.env.MODE || 'production',
   
   // File Upload

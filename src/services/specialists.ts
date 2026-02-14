@@ -10,6 +10,7 @@ export interface SpecialistSearchParams {
 }
 
 export interface CreateSpecialistData {
+  username: string;
   name: string;
   email: string;
   password: string;
@@ -76,7 +77,9 @@ function serializeSpecialistPayload(
   payload: Partial<CreateSpecialistData> & { status?: Specialist['status'] }
 ): Record<string, unknown> {
   const data: Record<string, unknown> = { ...payload };
-
+  if (payload.username) {
+    data.username = payload.username.trim().toLowerCase();
+  }
   if (payload.status) {
     data.status = SPECIALIST_STATUS_REVERSE_MAP[payload.status];
   }

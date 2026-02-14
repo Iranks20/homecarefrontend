@@ -227,12 +227,12 @@ export default function AddEditHealthRecordModal({
 
   // Calculate BMI from weight (lbs) and height (inches)
   // Formula: BMI = (weight in pounds / height in inches²) × 703
-  const calculateBMI = (weight: string, height: string): { bmi: string; category: string } => {
+  const calculateBMI = (weight: string, height: string): { bmi: string; bmiCategory: string } => {
     const weightNum = parseFloat(weight);
     const heightNum = parseFloat(height);
     
     if (!weightNum || !heightNum || weightNum <= 0 || heightNum <= 0) {
-      return { bmi: '', category: '' };
+      return { bmi: '', bmiCategory: '' };
     }
     
     // Convert height from inches to meters for calculation
@@ -241,18 +241,18 @@ export default function AddEditHealthRecordModal({
     const bmiRounded = Math.round(bmi * 10) / 10; // Round to 1 decimal place
     
     // Determine BMI category
-    let category = '';
+    let bmiCategory = '';
     if (bmiRounded < 18.5) {
-      category = 'Underweight';
+      bmiCategory = 'Underweight';
     } else if (bmiRounded >= 18.5 && bmiRounded < 25.0) {
-      category = 'Normal weight';
+      bmiCategory = 'Normal weight';
     } else if (bmiRounded >= 25.0 && bmiRounded < 30.0) {
-      category = 'Overweight';
+      bmiCategory = 'Overweight';
     } else {
-      category = 'Obese';
+      bmiCategory = 'Obese';
     }
     
-    return { bmi: bmiRounded.toString(), category };
+    return { bmi: bmiRounded.toString(), bmiCategory };
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -270,9 +270,9 @@ export default function AddEditHealthRecordModal({
         if (dataField === 'weight' || dataField === 'height') {
           const weight = dataField === 'weight' ? value : prev.data.weight;
           const height = dataField === 'height' ? value : prev.data.height;
-          const { bmi, category } = calculateBMI(weight, height);
+          const { bmi, bmiCategory } = calculateBMI(weight, height);
           updatedData.bmi = bmi;
-          updatedData.bmiCategory = category;
+          updatedData.bmiCategory = bmiCategory;
         }
         
         return {

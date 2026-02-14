@@ -12,6 +12,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
+import { getAssetUrl } from '../config/api';
 import nurseService from '../services/nurses';
 import { appointmentService } from '../services/appointments';
 import { trainingService } from '../services/training';
@@ -137,9 +138,7 @@ export default function NurseProfile() {
             <div className="text-center">
               {nurse.avatar && (
                 <img 
-                  src={nurse.avatar.startsWith('http') 
-                    ? nurse.avatar 
-                    : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${nurse.avatar.startsWith('/') ? nurse.avatar : '/' + nurse.avatar}`} 
+                  src={nurse.avatar.startsWith('http') ? nurse.avatar : getAssetUrl(nurse.avatar)} 
                   alt={nurse.name} 
                   className="h-24 w-24 rounded-full object-cover mx-auto mb-4" 
                 />

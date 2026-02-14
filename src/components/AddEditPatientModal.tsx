@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
-import { X, Upload, Image as ImageIcon, FileText } from 'lucide-react';
-import { Patient, Service } from '../types';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
+import { Patient } from '../types';
 import { apiService } from '../services/api';
-import { API_ENDPOINTS } from '../config/api';
-import servicesService from '../services/services';
-import { useApi } from '../hooks/useApi';
+import { API_CONFIG, API_ENDPOINTS, getAssetUrl } from '../config/api';
 
 interface SpecialistOption {
   id: string;
@@ -92,14 +90,6 @@ export default function AddEditPatientModal({
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  // Load services for selection
-  const {
-    data: servicesData,
-    loading: loadingServices,
-  } = useApi(() => servicesService.getServices({ isActive: true, limit: 200 }), []);
-
-  const servicesList = servicesData?.services ?? [];
-
   useEffect(() => {
     if (!isOpen) {
       setFormData(DEFAULT_FORM);
@@ -146,9 +136,7 @@ export default function AddEditPatientModal({
       });
       // Set avatar preview with full URL if it's a relative path
       if (patient.avatar) {
-        const avatarUrl = patient.avatar.startsWith('http') 
-          ? patient.avatar 
-          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`;
+        const avatarUrl = patient.avatar.startsWith('http') ? patient.avatar : getAssetUrl(patient.avatar);
         setAvatarPreview(avatarUrl);
       } else {
         setAvatarPreview(null);
@@ -177,37 +165,8 @@ export default function AddEditPatientModal({
         newData.insuranceProvider = '';
         newData.insuranceNumber = '';
       }
-      // If assigning to Specialist, clear Therapist assignment (mutually exclusive)
-      if (name === 'assignedSpecialistId' && value) {
-        newData.assignedTherapistId = '';
-      }
-      // If assigning to Therapist, clear Specialist assignment (mutually exclusive)
-      if (name === 'assignedTherapistId' && value) {
-        newData.assignedSpecialistId = '';
-      }
       return newData;
     });
-  };
-
-  const handleServiceToggle = (serviceId: string) => {
-    setFormData((prev) => {
-      const currentIds = prev.serviceIds || [];
-      const isSelected = currentIds.includes(serviceId);
-      return {
-      ...prev,
-        serviceIds: isSelected
-          ? currentIds.filter(id => id !== serviceId)
-          : [...currentIds, serviceId],
-      };
-    });
-  };
-
-  const getTotalAmount = () => {
-    if (!formData.serviceIds || formData.serviceIds.length === 0) return 0;
-    return formData.serviceIds.reduce((total, serviceId) => {
-      const service = servicesList.find(s => s.id === serviceId);
-      return total + (service?.price || 0);
-    }, 0);
   };
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,7 +221,7 @@ export default function AddEditPatientModal({
           }));
           
           // Update preview with full URL for display
-          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007';
+          const baseUrl = API_CONFIG.API_ORIGIN;
           const previewUrl = `${baseUrl}${avatarPath}`;
           setAvatarPreview(previewUrl);
         }
@@ -393,6 +352,17 @@ export default function AddEditPatientModal({
                   className="input-field mt-1"
                 />
               </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Primary Condition</label>
+                <input
+                  type="text"
+                  name="condition"
+                  value={formData.condition}
+                  onChange={handleChange}
+                  className="input-field mt-1"
+                  placeholder="e.g., Cardiac rehabilitation, Post-surgical recovery"
+                />
+              </div>
             </div>
           </section>
 
@@ -454,40 +424,6 @@ export default function AddEditPatientModal({
             </div>
           </section>
 
-          {/* Medical Information */}
-          <section>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Medical Information</h3>
-            <p className="text-sm text-gray-500 mb-4">Primary condition and medical history</p>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Primary Condition<span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="condition"
-                  value={formData.condition}
-                  onChange={handleChange}
-                  required
-                  className="input-field mt-1"
-                  placeholder="e.g., Cardiac rehabilitation, Post-surgical recovery"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Allergies</label>
-                <input
-                  type="text"
-                  name="allergies"
-                  value={formData.allergies}
-                  onChange={handleChange}
-                  className="input-field mt-1"
-                  placeholder="Known allergies (medications, food, etc.)"
-                />
-              </div>
-            </div>
-          </section>
-
           {/* Next of Kin Contact */}
           <section>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Next of Kin Contact</h3>
@@ -514,6 +450,17 @@ export default function AddEditPatientModal({
                   onChange={handleChange}
                   className="input-field mt-1"
                   placeholder="+1 (555) 123-4567"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Allergies</label>
+                <input
+                  type="text"
+                  name="allergies"
+                  value={formData.allergies}
+                  onChange={handleChange}
+                  className="input-field mt-1"
+                  placeholder="Known allergies (medications, food, etc.)"
                 />
               </div>
             </div>
@@ -579,7 +526,7 @@ export default function AddEditPatientModal({
           {/* Assignment & Care Details */}
           <section>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Assignment & Care Details</h3>
-            <p className="text-sm text-gray-500 mb-4">Assign patient to care providers (select either Specialist or Therapist)</p>
+            <p className="text-sm text-gray-500 mb-4">Assign patient to one or more care providers (Specialist and/or Therapist)</p>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -591,7 +538,6 @@ export default function AddEditPatientModal({
                   value={formData.assignedSpecialistId ?? ''}
                   onChange={handleChange}
                   className="input-field mt-1"
-                  disabled={!!formData.assignedTherapistId}
                 >
                   <option value="">Select specialist</option>
                   {specialists && specialists.length > 0 ? (
@@ -604,9 +550,6 @@ export default function AddEditPatientModal({
                     <option value="" disabled>No specialists available</option>
                   )}
                 </select>
-                {formData.assignedTherapistId && (
-                  <p className="text-xs text-gray-500 mt-1">Clear Therapist assignment first</p>
-                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -617,7 +560,6 @@ export default function AddEditPatientModal({
                   value={formData.assignedTherapistId ?? ''}
                   onChange={handleChange}
                   className="input-field mt-1"
-                  disabled={!!formData.assignedSpecialistId}
                 >
                   <option value="">Select therapist</option>
                   {therapists && therapists.length > 0 ? (
@@ -630,9 +572,6 @@ export default function AddEditPatientModal({
                     <option value="" disabled>No therapists available</option>
                   )}
                 </select>
-                {formData.assignedSpecialistId && (
-                  <p className="text-xs text-gray-500 mt-1">Clear Specialist assignment first</p>
-                )}
               </div>
               {mode === 'edit' && (
                 <div>
@@ -663,86 +602,6 @@ export default function AddEditPatientModal({
                   placeholder="How did patient find us?"
                 />
               </div>
-            </div>
-            
-            {/* Services Selection */}
-            <div className="mt-4">
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Services
-                </label>
-                <p className="text-xs text-gray-500">
-                  Select one or more services. Invoices will be created automatically for selected services.
-                </p>
-              </div>
-
-              {loadingServices ? (
-                <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-                  <p className="text-xs text-gray-500">Loading services...</p>
-                </div>
-              ) : servicesList && servicesList.length > 0 ? (
-                <>
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50 mb-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {servicesList.map((service) => {
-                        const isSelected = formData.serviceIds?.includes(service.id) || false;
-                        return (
-                          <div
-                            key={service.id}
-                            onClick={() => handleServiceToggle(service.id)}
-                            className={`
-                              relative border-2 rounded-lg p-3 cursor-pointer transition-all duration-200
-                              ${isSelected
-                                ? 'border-blue-500 bg-blue-50 shadow-sm'
-                                : 'border-gray-200 bg-white hover:border-blue-300'
-                              }
-                            `}
-                          >
-                            <div className="flex items-start gap-2">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handleServiceToggle(service.id)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="h-4 w-4 mt-0.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <h4 className="text-sm font-semibold text-gray-900 truncate">
-                                    {service.name}
-                                  </h4>
-                                </div>
-                                {service.category && (
-                                  <p className="text-xs text-gray-500 capitalize">
-                                    {service.category.toLowerCase().replace('_', ' ')}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            {isSelected && (
-                              <div className="absolute top-2 right-2">
-                                <div className="h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center">
-                                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                </>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
-                  <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs font-medium text-gray-700">No services available</p>
-                  <p className="text-xs text-gray-500 mt-1">Please add services to the system first</p>
-                </div>
-              )}
             </div>
 
             {/* Patient Photo */}

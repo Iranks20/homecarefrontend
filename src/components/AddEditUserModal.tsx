@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, UserPlus, Upload, Image as ImageIcon, X } from 'lucide-react';
 import type { User } from '../types';
 import { apiService } from '../services/api';
-import { API_ENDPOINTS } from '../config/api';
+import { API_CONFIG, API_ENDPOINTS, getAssetUrl } from '../config/api';
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'admin', label: 'Administrator' },
@@ -25,10 +25,11 @@ interface AddEditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (input: {
+    username?: string;
     name: string;
     email: string;
     password?: string;
-    role?: User['role']; // Optional for edit mode
+    role?: User['role'];
     phone?: string;
     department?: string;
     doctorSpecialization?: string;
@@ -46,6 +47,7 @@ interface AddEditUserModalProps {
 }
 
 const DEFAULT_FORM = {
+  username: '',
   name: '',
   email: '',
   password: '',
@@ -95,21 +97,20 @@ export default function AddEditUserModal({
       if (user) {
         // Edit mode: populate form with user data
         setFormState({
+          username: user.username || '',
           name: user.name || '',
           email: user.email || '',
-          password: '', // Don't populate password
+          password: '',
           role: user.role || 'nurse',
           phone: user.phone || '',
           department: user.department || '',
-          doctorSpecialization: user.doctorSpecialization?.toUpperCase() || '',
+          doctorSpecialization: '',
           isActive: user.isActive !== false,
           avatar: user.avatar || '',
         });
         // Set avatar preview with full URL if it's a relative path
         if (user.avatar) {
-          const avatarUrl = user.avatar.startsWith('http') 
-            ? user.avatar 
-            : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${user.avatar.startsWith('/') ? user.avatar : '/' + user.avatar}`;
+          const avatarUrl = user.avatar.startsWith('http') ? user.avatar : getAssetUrl(user.avatar);
           setAvatarPreview(avatarUrl);
         } else {
           setAvatarPreview(null);
@@ -192,7 +193,7 @@ export default function AddEditUserModal({
           }));
           
           // Update preview with full URL for display
-          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007';
+          const baseUrl = API_CONFIG.API_ORIGIN;
           const previewUrl = `${baseUrl}${avatarPath}`;
           setAvatarPreview(previewUrl);
         }
@@ -219,7 +220,10 @@ export default function AddEditUserModal({
     event.preventDefault();
     setError(null);
 
-    // Password is required only when creating a new user
+    if (!isEditMode && !formState.username?.trim()) {
+      setError('Username is required for new users.');
+      return;
+    }
     if (!isEditMode && (!formState.password || formState.password.length < 8)) {
       setError('Password must be at least 8 characters long.');
       return;
@@ -239,25 +243,25 @@ export default function AddEditUserModal({
         department: formState.department,
         isActive: formState.isActive,
       };
-      
-      // Add specialization if shown
+      if (formState.username?.trim()) {
+        payload.username = formState.username.trim().toLowerCase();
+      }
       if (showSpecialization && formState.doctorSpecialization) {
         payload.doctorSpecialization = formState.doctorSpecialization;
       }
-      
-      // Add avatar if uploaded
       if (formState.avatar) {
         payload.avatar = formState.avatar;
       }
-      
-        // Only include password if it's provided (for edit) or required (for create)
       if (isEditMode) {
         if (formState.password) {
           payload.password = formState.password;
         }
       } else {
         payload.password = formState.password;
-        payload.role = formState.role; // Only include role when creating
+        payload.role = formState.role;
+        if (!payload.username && formState.username?.trim()) {
+          payload.username = formState.username.trim().toLowerCase();
+        }
       }
       
       await onSave(payload);
@@ -304,6 +308,23 @@ export default function AddEditUserModal({
         )}
 
         <form className="space-y-4" onSubmit={handleSubmit}>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Username {!isEditMode && '*'}
+            </label>
+            <input
+              type="text"
+              name="username"
+              value={formState.username}
+              onChange={handleChange}
+              placeholder="e.g. jane.doe (used for login)"
+              disabled={isEditMode}
+              className="input-field disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+            />
+            {isEditMode && (
+              <p className="mt-1 text-xs text-gray-500">Username cannot be changed after creation</p>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

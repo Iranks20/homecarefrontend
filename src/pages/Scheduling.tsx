@@ -32,7 +32,7 @@ export default function Scheduling() {
   const { addNotification } = useNotifications();
 
   // Only Admin, Doctor, and Specialist can create appointments
-  const canCreateAppointments = user?.role === 'admin' || user?.role === 'doctor' || user?.role === 'specialist';
+  const canCreateAppointments = user?.role === 'admin' || user?.role === 'specialist';
   const isReceptionist = user?.role === 'receptionist';
 
   const monthRange = useMemo(() => getMonthRange(selectedDate), [selectedDate]);

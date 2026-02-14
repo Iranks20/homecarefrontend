@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Upload, Image as ImageIcon, Loader2, UserPlus } from 'lucide-react';
 import { apiService } from '../services/api';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS, getAssetUrl } from '../config/api';
 import { therapistService, type Therapist } from '../services/therapists';
 import { specializationService, type Specialization } from '../services/specializations';
 
 interface TherapistFormValues {
+  username: string;
   name: string;
   email: string;
   password: string;
@@ -32,6 +33,7 @@ interface AddEditTherapistModalProps {
 // Specializations will be loaded from API
 
 const DEFAULT_FORM: TherapistFormValues = {
+  username: '',
   name: '',
   email: '',
   password: '',
@@ -99,9 +101,10 @@ export default function AddEditTherapistModal({
         try {
           const fullTherapist = await therapistService.getTherapist(therapist.id);
           setFormData({
+            username: (fullTherapist as { username?: string }).username || '',
             name: fullTherapist.name || '',
             email: fullTherapist.email || '',
-            password: '', // Don't show password when editing
+            password: '',
             phone: fullTherapist.phone || '',
             specialization: fullTherapist.specialization || '',
             licenseNumber: fullTherapist.licenseNumber || '',
@@ -114,14 +117,13 @@ export default function AddEditTherapistModal({
           });
           // Set avatar preview
           if (fullTherapist.avatar) {
-            const avatarUrl = fullTherapist.avatar.startsWith('http')
-              ? fullTherapist.avatar
-              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${fullTherapist.avatar.startsWith('/') ? fullTherapist.avatar : '/' + fullTherapist.avatar}`;
+            const avatarUrl = fullTherapist.avatar.startsWith('http') ? fullTherapist.avatar : getAssetUrl(fullTherapist.avatar);
             setAvatarPreview(avatarUrl);
           }
         } catch (err) {
           // Fallback to basic data if fetch fails
           setFormData({
+            username: (therapist as { username?: string }).username || '',
             name: therapist.name || '',
             email: therapist.email || '',
             password: '',
@@ -240,7 +242,10 @@ export default function AddEditTherapistModal({
     e.preventDefault();
     setError(null);
 
-    // Validate password for new therapists
+    if (mode === 'add' && !formData.username?.trim()) {
+      setError('Username is required for new therapists.');
+      return;
+    }
     if (mode === 'add' && (!formData.password || formData.password.length < 8)) {
       setError('Password must be at least 8 characters long.');
       return;
@@ -325,6 +330,24 @@ export default function AddEditTherapistModal({
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username *
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleInputChange}
+                required={mode === 'add'}
+                disabled={mode === 'edit'}
+                className="input-field disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                placeholder="e.g. lisa.anderson (used for login)"
+              />
+              {mode === 'edit' && (
+                <p className="text-xs text-gray-500 mt-1">Username cannot be changed after creation</p>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

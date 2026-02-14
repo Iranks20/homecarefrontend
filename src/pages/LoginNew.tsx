@@ -11,7 +11,7 @@ import { ApiError } from '../services/api';
 export default function Login() {
   const { login, isLoading } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -30,14 +30,13 @@ export default function Login() {
     e.preventDefault();
 
     const validationRules = {
-      email: commonValidationRules.email,
+      username: { required: true, message: 'Username is required' },
       password: { required: true, message: 'Password is required' },
     };
 
     const validationErrors = validateForm(formData, validationRules);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      // Show validation error toast
       const firstError = Object.values(validationErrors)[0];
       if (firstError) {
         toast.error(firstError);
@@ -47,7 +46,7 @@ export default function Login() {
 
     try {
       await login({
-        email: formData.email,
+        username: formData.username,
         password: formData.password,
       });
       // Success toast will be shown by AuthContext
@@ -91,17 +90,18 @@ export default function Login() {
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <FormField
-              label="Email Address"
-              error={errors.email}
+              label="Username"
+              error={errors.username}
               required
             >
               <InputField
-                type="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                name="username"
+                value={formData.username}
                 onChange={handleInputChange}
-                placeholder="Enter your email"
-                error={errors.email}
+                placeholder="Enter your username"
+                error={errors.username}
+                autoComplete="username"
               />
             </FormField>
 

@@ -222,7 +222,7 @@ export default function Dashboard() {
             notificationService.getNotifications({ limit: 5 }),
           ]);
 
-          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value : { totalPatients: 0, totalAppointments: 0, todayAppointments: 0, pendingInvoices: 0, upcomingAppointments: [] };
+          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value as any : { totalPatients: 0, totalAppointments: 0, todayAppointments: 0, pendingInvoices: 0, upcomingAppointments: [] };
           const appointments = upcomingAppointmentsResponse.status === 'fulfilled' ? upcomingAppointmentsResponse.value : { appointments: [] };
           const notifications = notificationsResponse.status === 'fulfilled' ? notificationsResponse.value : { data: [] };
 
@@ -254,13 +254,6 @@ export default function Dashboard() {
               icon: Clock,
               color: 'text-green-600',
               bgColor: 'bg-green-100',
-            },
-            {
-              name: 'Pending Invoices',
-              value: analytics.pendingInvoices ?? 0,
-              icon: CreditCard,
-              color: 'text-orange-600',
-              bgColor: 'bg-orange-100',
             },
           ];
 
@@ -317,7 +310,7 @@ export default function Dashboard() {
             notificationService.getNotifications({ limit: 5 }),
           ]);
 
-          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value : { assignedPatients: 0, totalAppointments: 0, todayAppointments: 0, pendingReferrals: 0, recentPatients: [] };
+          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value as any : { assignedPatients: 0, totalAppointments: 0, todayAppointments: 0, pendingReferrals: 0, recentPatients: [] };
           const notifications = notificationsResponse.status === 'fulfilled' ? notificationsResponse.value : { data: [] };
 
           const stats: Stat[] = [
@@ -391,7 +384,7 @@ export default function Dashboard() {
             notificationService.getNotifications({ limit: 5 }),
           ]);
 
-          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value : { assignedPatients: 0, totalAppointments: 0, todayAppointments: 0, readyForDischarge: 0, recentPatients: [] };
+          const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value as any : { assignedPatients: 0, totalAppointments: 0, todayAppointments: 0, readyForDischarge: 0, recentPatients: [] };
           const notifications = notificationsResponse.status === 'fulfilled' ? notificationsResponse.value : { data: [] };
 
           const stats: Stat[] = [
@@ -467,7 +460,7 @@ export default function Dashboard() {
         ]);
 
         // Handle results with fallbacks for failed requests
-        const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value : { totalPatients: 0, totalAppointments: 0, totalNurses: 0, totalRevenue: 0, recentAppointments: [] };
+        const analytics = dashboardAnalytics.status === 'fulfilled' ? dashboardAnalytics.value as any : { totalPatients: 0, totalAppointments: 0, totalNurses: 0, totalRevenue: 0, recentAppointments: [] };
         const appointments = upcomingAppointmentsResponse.status === 'fulfilled' ? upcomingAppointmentsResponse.value : { appointments: [] };
         const reminders = remindersResponse.status === 'fulfilled' ? remindersResponse.value : { reminders: [] };
         const notifications = notificationsResponse.status === 'fulfilled' ? notificationsResponse.value : { data: [] };

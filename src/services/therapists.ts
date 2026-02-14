@@ -27,6 +27,7 @@ export interface TherapistSearchParams {
 }
 
 export interface CreateTherapistData {
+  username: string;
   name: string;
   email: string;
   password: string;
@@ -71,7 +72,9 @@ function serializeTherapistPayload(
   payload: Partial<CreateTherapistData> & { status?: Therapist['status'] }
 ): Record<string, unknown> {
   const data: Record<string, unknown> = { ...payload };
-
+  if (payload.username) {
+    data.username = payload.username.trim().toLowerCase();
+  }
   if (payload.status) {
     data.status = THERAPIST_STATUS_REVERSE_MAP[payload.status];
   }

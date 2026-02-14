@@ -9,6 +9,7 @@ export interface NurseSearchParams {
 }
 
 export interface NursePayload {
+  username: string;
   name: string;
   email: string;
   password: string;
@@ -51,15 +52,15 @@ function normalizeNurse(nurse: NurseApi): Nurse {
 
 function serializeNurse(payload: Partial<NursePayload>): Record<string, unknown> {
   const data: Record<string, unknown> = { ...payload };
-
+  if (payload.username) {
+    data.username = payload.username.trim().toLowerCase();
+  }
   if (payload.status) {
     data.status = NURSE_STATUS_REVERSE_MAP[payload.status] ?? payload.status;
   }
-
   if (payload.hireDate) {
     data.hireDate = new Date(payload.hireDate).toISOString();
   }
-
   return data;
 }
 

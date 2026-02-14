@@ -21,8 +21,6 @@ export default function MySchedule() {
           return appointmentService.getNurseAppointments(user.id, { limit: 200 });
         case 'specialist':
           return appointmentService.getSpecialistAppointments(user.id, { limit: 200 });
-        case 'doctor':
-          return appointmentService.getAppointments({ limit: 200 });
         default:
           return appointmentService.getAppointments({ limit: 200 });
       }

@@ -11,6 +11,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import servicesService from '../services/services';
 import { useApi } from '../hooks/useApi';
+import { getAssetUrl } from '../config/api';
 
 export default function Patients() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,6 +24,7 @@ export default function Patients() {
   const [error, setError] = useState<string | null>(null);
   const [specialists, setSpecialists] = useState<{ id: string; name: string; specialization?: string }[]>([]);
   const [therapists, setTherapists] = useState<{ id: string; name: string; specialization?: string }[]>([]);
+  const [nurses, setNurses] = useState<{ id: string; name: string }[]>([]);
   
   // Get current user for role-based access control
   const { user } = useAuth();
@@ -33,6 +35,8 @@ export default function Patients() {
 
   // Check if user can add patients (only admin and receptionist)
   const canAddPatient = user?.role === 'admin' || user?.role === 'receptionist';
+  // Only admin can edit or archive patient information (receptionists/nurses add; others view only)
+  const canEditPatient = user?.role === 'admin';
 
   // Load services for displaying patient services
   const {
@@ -60,10 +64,16 @@ export default function Patients() {
     return map;
   }, [therapists]);
 
+  const nurseMap = useMemo(() => {
+    const map = new Map<string, string>();
+    nurses.forEach((nurse) => map.set(nurse.id, nurse.name));
+    return map;
+  }, [nurses]);
+
   const loadTherapists = async () => {
     try {
       const { users } = await userService.getMedicalStaff({
-        role: 'THERAPIST',
+        role: 'SPECIALIST',
         limit: 500,
       });
       setTherapists(users.map((therapist) => {
@@ -177,9 +187,39 @@ export default function Patients() {
     }
   };
 
+  const loadNurses = async () => {
+    try {
+      const { users } = await userService.getMedicalStaff({
+        role: 'NURSE',
+        limit: 500,
+      });
+      setNurses(users.map((nurse) => ({ 
+        id: nurse.id, 
+        name: nurse.name
+      })));
+    } catch (err: any) {
+      console.error('Failed to load nurses', err);
+      // If API fails, try to load all users and filter
+      try {
+        const { users: allUsers } = await userService.getUsers({
+          limit: 500,
+        });
+        const nurseUsers = allUsers.filter(u => u.role === 'nurse');
+        setNurses(nurseUsers.map((nurse) => ({ 
+          id: nurse.id, 
+          name: nurse.name
+        })));
+      } catch (fallbackErr) {
+        console.error('Fallback load failed', fallbackErr);
+        setNurses([]);
+      }
+    }
+  };
+
   useEffect(() => {
     loadSpecialists();
     loadTherapists();
+    loadNurses();
   }, []);
 
   useEffect(() => {
@@ -454,9 +494,7 @@ export default function Patients() {
                     <div className="flex items-center">
                         {patient.avatar ? (
                       <img
-                        src={patient.avatar.startsWith('http') 
-                          ? patient.avatar 
-                          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`}
+                        src={patient.avatar.startsWith('http') ? patient.avatar : getAssetUrl(patient.avatar)}
                         alt={patient.name}
                         className="h-10 w-10 rounded-full object-cover"
                       />
@@ -559,22 +597,26 @@ export default function Patients() {
                           <Eye className="mr-1 h-4 w-4" />
                           View
                         </Link>
-                        <button 
-                          onClick={() => openEditModal(patient)}
-                          className="text-secondary-600 hover:text-secondary-900 inline-flex items-center"
-                          type="button"
-                        >
-                          <Edit className="mr-1 h-4 w-4" />
-                          Edit
-                        </button>
-                        <button 
-                          onClick={() => handleDeletePatient(patient.id)}
-                          className="text-red-600 hover:text-red-900 inline-flex items-center"
-                          type="button"
-                        >
-                          <Trash2 className="mr-1 h-4 w-4" />
-                          Archive
-                        </button>
+                        {canEditPatient && (
+                          <>
+                            <button 
+                              onClick={() => openEditModal(patient)}
+                              className="text-secondary-600 hover:text-secondary-900 inline-flex items-center"
+                              type="button"
+                            >
+                              <Edit className="mr-1 h-4 w-4" />
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => handleDeletePatient(patient.id)}
+                              className="text-red-600 hover:text-red-900 inline-flex items-center"
+                              type="button"
+                            >
+                              <Trash2 className="mr-1 h-4 w-4" />
+                              Archive
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                 </tr>

@@ -62,16 +62,16 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           notificationsData = response;
         } else if (response && typeof response === 'object') {
           // Check if response has data array directly
-          if (Array.isArray(response.data)) {
-            notificationsData = response.data;
+          if (Array.isArray((response as any).data)) {
+            notificationsData = (response as any).data;
           } 
           // Check if response.data is an object with data array (nested structure)
-          else if (response.data && typeof response.data === 'object' && Array.isArray(response.data.data)) {
-            notificationsData = response.data.data;
+          else if ((response as any).data && typeof (response as any).data === 'object' && Array.isArray((response as any).data.data)) {
+            notificationsData = (response as any).data.data;
           }
           // Check for success wrapper with data array
-          else if (response.success && Array.isArray(response.data)) {
-            notificationsData = response.data;
+          else if ((response as any).success && Array.isArray((response as any).data)) {
+            notificationsData = (response as any).data;
           }
         }
         

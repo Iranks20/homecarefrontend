@@ -1,8 +1,9 @@
 export interface User {
   id: string;
+  username?: string;
   name: string;
   email: string;
-  role: 'admin' | 'receptionist' | 'specialist' | 'therapist' | 'nurse' | 'biller';
+  role: 'admin' | 'receptionist' | 'specialist' | 'therapist' | 'nurse' | 'biller' | 'lab_attendant';
   roleCode?: string;
   // Specialization fields
   specialistSpecialization?: string;
@@ -828,6 +829,25 @@ export interface PaginatedResponse<T> {
     total: number;
     totalPages: number;
   };
+}
+
+// Investigation request (specialist/therapist requests; lab attendant fulfills)
+export interface InvestigationRequest {
+  id: string;
+  patientId: string;
+  requestedById: string;
+  requestedByName: string;
+  requestedByRole: string;
+  investigationName: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  priority: 'ROUTINE' | 'URGENT' | 'STAT';
+  notes?: string;
+  requestedAt: string;
+  completedAt?: string;
+  labSampleId?: string;
+  completedById?: string;
+  completedByName?: string;
+  patient?: { id: string; name: string; email: string };
 }
 
 // Lab Collection and Referral System Interfaces

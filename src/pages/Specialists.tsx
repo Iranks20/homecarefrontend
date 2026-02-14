@@ -8,6 +8,7 @@ import { useApi, useApiMutation } from '../hooks/useApi';
 import { specialistService } from '../services/specialists';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { getAssetUrl } from '../config/api';
 
 export default function Specialists() {
   const { user } = useAuth();
@@ -333,9 +334,7 @@ export default function Specialists() {
                       <div className="flex items-center">
                         {specialist.avatar ? (
                           <img
-                            src={specialist.avatar.startsWith('http') 
-                              ? specialist.avatar 
-                              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${specialist.avatar.startsWith('/') ? specialist.avatar : '/' + specialist.avatar}`}
+                            src={specialist.avatar.startsWith('http') ? specialist.avatar : getAssetUrl(specialist.avatar)}
                             alt={specialist.name}
                             className="h-10 w-10 rounded-full object-cover"
                           />

@@ -50,6 +50,8 @@ export default function ClinicalDocumentation() {
   });
   const { user } = useAuth();
   const { addNotification } = useNotifications();
+  // Only admin can edit clinical records (receptionists/nurses add; others view only)
+  const canEditRecords = user?.role === 'admin';
   const [viewingRecord, setViewingRecord] = useState<HealthRecordUpdate | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
@@ -499,13 +501,15 @@ export default function ClinicalDocumentation() {
                                 <Eye className="h-3 w-3 mr-1 inline" />
                                 View
                               </button>
-                              <button
-                                onClick={() => handleEditRecord(record)}
-                                className="btn-outline text-xs px-2 py-1"
-                              >
-                                <FileText className="h-3 w-3 mr-1 inline" />
-                                Edit
-                              </button>
+                              {canEditRecords && (
+                                <button
+                                  onClick={() => handleEditRecord(record)}
+                                  className="btn-outline text-xs px-2 py-1"
+                                >
+                                  <FileText className="h-3 w-3 mr-1 inline" />
+                                  Edit
+                                </button>
+                              )}
                               <button
                                 onClick={() => handlePrintRecord(record)}
                                 className="btn-outline text-xs px-2 py-1"

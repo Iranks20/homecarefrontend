@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Specialist } from '../types';
 import { apiService } from '../services/api';
-import { API_ENDPOINTS } from '../config/api';
+import { API_CONFIG, API_ENDPOINTS, getAssetUrl } from '../config/api';
 import { specializationService, type Specialization } from '../services/specializations';
 
 interface SpecialistFormValues {
+  username: string;
   name: string;
   email: string;
   password: string;
@@ -39,6 +40,7 @@ export default function AddEditSpecialistModal({
   mode,
 }: AddEditSpecialistModalProps) {
   const [formData, setFormData] = useState<SpecialistFormValues>({
+    username: '',
     name: '',
     email: '',
     password: '',
@@ -95,9 +97,10 @@ export default function AddEditSpecialistModal({
   useEffect(() => {
     if (isEdit && specialist) {
       setFormData({
+        username: (specialist as Specialist & { username?: string }).username ?? '',
         name: specialist.name,
         email: specialist.email,
-        password: '', // Don't show password when editing
+        password: '',
         phone: specialist.phone,
         licenseNumber: specialist.licenseNumber,
         specialization: specialist.specialization,
@@ -113,15 +116,14 @@ export default function AddEditSpecialistModal({
       });
       // Set avatar preview with full URL if it's a relative path
       if (specialist.avatar) {
-        const avatarUrl = specialist.avatar.startsWith('http') 
-          ? specialist.avatar 
-          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${specialist.avatar.startsWith('/') ? specialist.avatar : '/' + specialist.avatar}`;
+        const avatarUrl = specialist.avatar.startsWith('http') ? specialist.avatar : getAssetUrl(specialist.avatar);
         setAvatarPreview(avatarUrl);
       } else {
         setAvatarPreview(null);
       }
     } else if (mode === 'add') {
       setFormData({
+        username: '',
         name: '',
         email: '',
         password: '',
@@ -220,7 +222,7 @@ export default function AddEditSpecialistModal({
           }));
           
           // Update preview with full URL for display
-          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007';
+          const baseUrl = API_CONFIG.API_ORIGIN;
           const previewUrl = `${baseUrl}${avatarPath}`;
           setAvatarPreview(previewUrl);
         }
@@ -248,7 +250,11 @@ export default function AddEditSpecialistModal({
     setIsSubmitting(true);
     setError(null);
 
-    // Validate password for new specialists
+    if (mode === 'add' && !formData.username?.trim()) {
+      setError('Username is required for new specialists.');
+      setIsSubmitting(false);
+      return;
+    }
     if (mode === 'add' && (!formData.password || formData.password.length < 8)) {
       setError('Password must be at least 8 characters long.');
       setIsSubmitting(false);
@@ -310,6 +316,24 @@ export default function AddEditSpecialistModal({
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username *
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleInputChange}
+                required={mode === 'add'}
+                disabled={mode === 'edit' || isSubmitting}
+                className="input-field disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                placeholder="e.g. dr.smith (used for login)"
+              />
+              {mode === 'edit' && (
+                <p className="text-xs text-gray-500 mt-1">Username cannot be changed after creation</p>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -341,7 +365,6 @@ export default function AddEditSpecialistModal({
                   placeholder="Enter email address"
                   disabled={isSubmitting}
                 />
-                <p className="text-xs text-gray-500 mt-1">This will be used for login</p>
               </div>
 
               {mode === 'add' && (

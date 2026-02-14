@@ -7,6 +7,7 @@ import { userService, type CreateUserPayload, type UpdateUserPayload } from '../
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
+import { getAssetUrl } from '../config/api';
 
 export default function Doctors() {
   const { user } = useAuth();
@@ -49,7 +50,7 @@ export default function Doctors() {
         !search ||
         doctor.name.toLowerCase().includes(search) ||
         doctor.email.toLowerCase().includes(search) ||
-        doctor.doctorSpecialization?.toLowerCase().includes(search) ||
+        (doctor as any).doctorSpecialization?.toLowerCase().includes(search) ||
         doctor.licenseNumber?.toLowerCase().includes(search);
 
       const matchesStatus =
@@ -309,9 +310,7 @@ export default function Doctors() {
                       <div className="flex items-center">
                         {doctor.avatar ? (
                           <img
-                            src={doctor.avatar.startsWith('http') 
-                              ? doctor.avatar 
-                              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${doctor.avatar.startsWith('/') ? doctor.avatar : '/' + doctor.avatar}`}
+                            src={doctor.avatar.startsWith('http') ? doctor.avatar : getAssetUrl(doctor.avatar)}
                             alt={doctor.name}
                             className="h-10 w-10 rounded-full object-cover"
                           />
@@ -337,9 +336,9 @@ export default function Doctors() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getSpecializationColor(doctor.doctorSpecialization)}`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${getSpecializationColor((doctor as any).doctorSpecialization)}`}
                       >
-                        {formatSpecialization(doctor.doctorSpecialization)}
+                        {formatSpecialization((doctor as any).doctorSpecialization)}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
@@ -378,7 +377,7 @@ export default function Doctors() {
                         <button 
                           onClick={() => {
                             // For now, show doctor info in an alert. Can be enhanced to show a modal later
-                            alert(`Doctor Details:\n\nName: ${doctor.name}\nEmail: ${doctor.email}\nPhone: ${doctor.phone || 'N/A'}\nSpecialization: ${formatSpecialization(doctor.doctorSpecialization)}\nLicense: ${doctor.licenseNumber || 'N/A'}\nStatus: ${doctor.isActive !== false ? 'Active' : 'Inactive'}`);
+                            alert(`Doctor Details:\n\nName: ${doctor.name}\nEmail: ${doctor.email}\nPhone: ${doctor.phone || 'N/A'}\nSpecialization: ${formatSpecialization((doctor as any).doctorSpecialization)}\nLicense: ${doctor.licenseNumber || 'N/A'}\nStatus: ${doctor.isActive !== false ? 'Active' : 'Inactive'}`);
                           }}
                           className="text-primary-600 hover:text-primary-900"
                           title="View doctor details"
@@ -437,13 +436,13 @@ export default function Doctors() {
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-blue-600">
-            {doctors.filter((d) => d.doctorSpecialization === 'neurologist').length}
+            {doctors.filter((d) => (d as any).doctorSpecialization === 'neurologist').length}
           </div>
           <div className="text-sm text-gray-600">Neurologists</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-green-600">
-            {doctors.filter((d) => d.doctorSpecialization === 'orthopedist').length}
+            {doctors.filter((d) => (d as any).doctorSpecialization === 'orthopedist').length}
           </div>
           <div className="text-sm text-gray-600">Orthopedists</div>
         </div>
@@ -462,7 +461,7 @@ export default function Doctors() {
         title="Add Doctor"
         description="Add a new doctor to the system. They will receive login credentials via email."
         hideRoleSelector={true}
-        defaultRole="doctor"
+        defaultRole="specialist"
         showSpecialization={true}
       />
 

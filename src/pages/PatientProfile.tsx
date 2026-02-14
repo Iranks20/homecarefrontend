@@ -17,6 +17,8 @@ import {
   Heart,
   Thermometer,
   Gauge,
+  Download,
+  Printer,
 } from 'lucide-react';
 import {
   LineChart,
@@ -34,6 +36,8 @@ import { billingService } from '../services/billing';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import AddEditHealthRecordModal from '../components/AddEditHealthRecordModal';
+import { getAssetUrl } from '../config/api';
+import { downloadPatientProfilePdf, generatePatientProfilePdf } from '../utils/patientProfilePdf';
 import type {
   Patient,
   MedicalRecord,
@@ -55,6 +59,8 @@ export default function PatientProfile() {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
+  const canViewBilling = user?.role === 'admin' || user?.role === 'biller';
+  const [isPdfPreparing, setIsPdfPreparing] = useState(false);
 
   // Check if user can record vitals (nurses, specialists, therapists, admin)
   const canRecordVitals = user?.role === 'nurse' || user?.role === 'specialist' || user?.role === 'therapist' || user?.role === 'admin';
@@ -201,18 +207,126 @@ export default function PatientProfile() {
     );
   }
 
+  const handleDownloadPdf = () => {
+    if (!patient || !profileData) return;
+    setIsPdfPreparing(true);
+    try {
+      downloadPatientProfilePdf({
+        patient,
+        medicalHistory: profileData.medicalHistory,
+        progress: profileData.progress,
+        cases: profileData.cases,
+        healthRecords: profileData.healthRecords,
+        invoices,
+        latestVitals: latestVitals ?? undefined,
+      });
+      addNotification({
+        title: 'PDF downloaded',
+        message: 'Patient summary has been downloaded.',
+        type: 'success',
+        priority: 'low',
+        category: 'system',
+        userId: '',
+      });
+    } catch (e) {
+      addNotification({
+        title: 'Download failed',
+        message: e instanceof Error ? e.message : 'Could not generate PDF.',
+        type: 'error',
+        priority: 'medium',
+        category: 'system',
+        userId: '',
+      });
+    } finally {
+      setIsPdfPreparing(false);
+    }
+  };
+
+  const handlePrintPdf = () => {
+    if (!patient || !profileData) return;
+    setIsPdfPreparing(true);
+    try {
+      const doc = generatePatientProfilePdf({
+        patient,
+        medicalHistory: profileData.medicalHistory,
+        progress: profileData.progress,
+        cases: profileData.cases,
+        healthRecords: profileData.healthRecords,
+        invoices,
+        latestVitals: latestVitals ?? undefined,
+      });
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, '_blank');
+      if (w) {
+        w.onload = () => setTimeout(() => URL.revokeObjectURL(url), 500);
+      } else {
+        URL.revokeObjectURL(url);
+        addNotification({
+          title: 'Print',
+          message: 'Please allow pop-ups to open the PDF for printing, or use Download PDF.',
+          type: 'info',
+          priority: 'medium',
+          category: 'system',
+          userId: '',
+        });
+      }
+      addNotification({
+        title: 'PDF ready',
+        message: 'Patient summary opened in new tab. Use the browser print (Ctrl+P) to print.',
+        type: 'success',
+        priority: 'low',
+        category: 'system',
+        userId: '',
+      });
+    } catch (e) {
+      addNotification({
+        title: 'Print failed',
+        message: e instanceof Error ? e.message : 'Could not generate PDF.',
+        type: 'error',
+        priority: 'medium',
+        category: 'system',
+        userId: '',
+      });
+    } finally {
+      setIsPdfPreparing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Link
-          to="/patients"
-          className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{patient.name}</h1>
-          <p className="text-sm text-gray-600">Patient Profile</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Link
+            to="/patients"
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{patient.name}</h1>
+            <p className="text-sm text-gray-600">Patient Profile</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isPdfPreparing}
+            className="inline-flex items-center gap-2 btn-outline py-2 px-4 text-sm"
+          >
+            <Download className="h-4 w-4" />
+            {isPdfPreparing ? 'Preparing…' : 'Download PDF'}
+          </button>
+          <button
+            type="button"
+            onClick={handlePrintPdf}
+            disabled={isPdfPreparing}
+            className="inline-flex items-center gap-2 btn-primary py-2 px-4 text-sm"
+          >
+            <Printer className="h-4 w-4" />
+            Print
+          </button>
         </div>
       </div>
 
@@ -222,9 +336,7 @@ export default function PatientProfile() {
             <div className="text-center">
               {patient.avatar && (
               <img
-                src={patient.avatar.startsWith('http') 
-                  ? patient.avatar 
-                  : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${patient.avatar.startsWith('/') ? patient.avatar : '/' + patient.avatar}`}
+                src={patient.avatar.startsWith('http') ? patient.avatar : getAssetUrl(patient.avatar)}
                 alt={patient.name}
                 className="h-24 w-24 rounded-full object-cover mx-auto mb-4"
                 onError={(e) => {
@@ -621,78 +733,80 @@ export default function PatientProfile() {
             )}
           </div>
 
-          {/* Billing & Invoices */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Billing & Invoices</h3>
-              <CreditCard className="h-5 w-5 text-primary-500" />
-            </div>
-            
-            {loadingInvoices ? (
-              <p className="text-sm text-gray-500">Loading invoices...</p>
-            ) : invoices.length > 0 ? (
-              <div className="space-y-3">
-                {invoices.map((invoice) => (
-                  <div key={invoice.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium text-gray-900">{invoice.serviceName}</span>
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              invoice.status === 'paid'
-                                ? 'bg-green-100 text-green-800'
-                                : invoice.status === 'overdue'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {invoice.status.toUpperCase()}
-                          </span>
+          {/* Billing & Invoices (Admin and Biller only) */}
+          {canViewBilling && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Billing & Invoices</h3>
+                <CreditCard className="h-5 w-5 text-primary-500" />
+              </div>
+              
+              {loadingInvoices ? (
+                <p className="text-sm text-gray-500">Loading invoices...</p>
+              ) : invoices.length > 0 ? (
+                <div className="space-y-3">
+                  {invoices.map((invoice) => (
+                    <div key={invoice.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-gray-900">{invoice.serviceName}</span>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                invoice.status === 'paid'
+                                  ? 'bg-green-100 text-green-800'
+                                  : invoice.status === 'overdue'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}
+                            >
+                              {invoice.status.toUpperCase()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 mb-1">{invoice.description || 'Service invoice'}</p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>Date: {new Date(invoice.date).toLocaleDateString()}</span>
+                            <span>Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-600 mb-1">{invoice.description || 'Service invoice'}</p>
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span>Date: {new Date(invoice.date).toLocaleDateString()}</span>
-                          <span>Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center text-sm font-semibold text-gray-900">
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          {invoice.amount.toFixed(2)}
+                        <div className="text-right">
+                          <div className="flex items-center text-sm font-semibold text-gray-900">
+                            <DollarSign className="h-4 w-4 mr-1" />
+                            {invoice.amount.toFixed(2)}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                <div className="mt-4 pt-3 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Total Outstanding:</span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      ${invoices
-                        .filter(inv => inv.status !== 'paid')
-                        .reduce((sum, inv) => sum + inv.amount, 0)
-                        .toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-sm font-medium text-gray-700">Total Paid:</span>
-                    <span className="text-sm font-semibold text-green-600">
-                      ${invoices
-                        .filter(inv => inv.status === 'paid')
-                        .reduce((sum, inv) => sum + inv.amount, 0)
-                        .toFixed(2)}
-                    </span>
+                  ))}
+                  <div className="mt-4 pt-3 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Total Outstanding:</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        ${invoices
+                          .filter(inv => inv.status !== 'paid')
+                          .reduce((sum, inv) => sum + inv.amount, 0)
+                          .toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-sm font-medium text-gray-700">Total Paid:</span>
+                      <span className="text-sm font-semibold text-green-600">
+                        ${invoices
+                          .filter(inv => inv.status === 'paid')
+                          .reduce((sum, inv) => sum + inv.amount, 0)
+                          .toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No invoices found for this patient.</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-sm text-gray-500">No invoices found for this patient.</p>
+              )}
+            </div>
+          )}
 
-          {/* Additional Patient Information */}
-          {(patient.allergies || patient.currentMedications || (patient as any).paymentType || patient.insuranceProvider || (patient as any).serviceIds || patient.referralSource) && (
+          {/* Additional Patient Information (Admin and Biller only) */}
+          {canViewBilling && (patient.allergies || patient.currentMedications || (patient as any).paymentType || patient.insuranceProvider || (patient as any).serviceIds || patient.referralSource) && (
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Additional Information</h3>

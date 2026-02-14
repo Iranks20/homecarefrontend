@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { X, Save, User, Award, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Nurse } from '../types';
 import { apiService } from '../services/api';
-import { API_ENDPOINTS } from '../config/api';
+import { API_CONFIG, API_ENDPOINTS, getAssetUrl } from '../config/api';
 
 export interface NurseFormValues {
+  username: string;
   name: string;
   email: string;
   password: string;
@@ -27,6 +28,7 @@ interface AddEditNurseModalProps {
 }
 
 const DEFAULT_FORM: NurseFormValues = {
+  username: '',
   name: '',
   email: '',
   password: '',
@@ -69,9 +71,10 @@ export default function AddEditNurseModal({
 
     if (mode === 'edit' && nurse) {
       setFormData({
+        username: (nurse as Nurse & { username?: string }).username ?? '',
         name: nurse.name,
         email: nurse.email,
-        password: '', // Don't show password when editing
+        password: '',
         phone: nurse.phone,
         licenseNumber: nurse.licenseNumber,
         specialization: nurse.specialization,
@@ -85,9 +88,7 @@ export default function AddEditNurseModal({
       });
       // Set avatar preview with full URL if it's a relative path
       if (nurse.avatar) {
-        const avatarUrl = nurse.avatar.startsWith('http') 
-          ? nurse.avatar 
-          : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007'}${nurse.avatar.startsWith('/') ? nurse.avatar : '/' + nurse.avatar}`;
+        const avatarUrl = nurse.avatar.startsWith('http') ? nurse.avatar : getAssetUrl(nurse.avatar);
         setAvatarPreview(avatarUrl);
       } else {
         setAvatarPreview(null);
@@ -188,7 +189,7 @@ export default function AddEditNurseModal({
           }));
           
           // Update preview with full URL for display
-          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://51.20.55.20:3007';
+          const baseUrl = API_CONFIG.API_ORIGIN;
           const previewUrl = `${baseUrl}${avatarPath}`;
           setAvatarPreview(previewUrl);
         }
@@ -216,7 +217,11 @@ export default function AddEditNurseModal({
     setIsSubmitting(true);
     setError(null);
 
-    // Validate password for new nurses
+    if (mode === 'add' && !formData.username?.trim()) {
+      setError('Username is required for new nurses.');
+      setIsSubmitting(false);
+      return;
+    }
     if (mode === 'add' && (!formData.password || formData.password.length < 8)) {
       setError('Password must be at least 8 characters long.');
       setIsSubmitting(false);
@@ -276,6 +281,24 @@ export default function AddEditNurseModal({
               Personal Information
             </h3>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Username<span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleInputChange}
+                required={mode === 'add'}
+                disabled={mode === 'edit'}
+                className="input-field mt-1 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                placeholder="e.g. sarah.johnson (used for login)"
+              />
+              {mode === 'edit' && (
+                <p className="text-xs text-gray-500 mt-1">Username cannot be changed after creation</p>
+              )}
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -304,7 +327,6 @@ export default function AddEditNurseModal({
                   className="input-field mt-1"
                   placeholder="sarah@example.com"
                 />
-                <p className="text-xs text-gray-500 mt-1">This will be used for login</p>
               </div>
               {mode === 'add' && (
                 <div>

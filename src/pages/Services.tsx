@@ -249,25 +249,25 @@ export default function Services() {
               </div>
             </div>
             
-            <div className="mt-4 flex space-x-2">
+            <div className="mt-4 flex items-center gap-2">
               <button
                 onClick={() => setSelectedService(service)}
-                className="flex-1 btn-outline"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 btn-outline py-1.5 px-3 text-sm"
               >
-                <Eye className="h-4 w-4 mr-2" />
-                View Details
+                <Eye className="h-3.5 w-3.5 shrink-0" />
+                <span>View Details</span>
               </button>
-              <button 
+              <button
                 onClick={() => openEditModal(service)}
-                className="btn-secondary"
+                className="inline-flex items-center justify-center btn-secondary py-1.5 px-2.5 text-sm min-w-[2.25rem]"
               >
-                <Edit className="h-4 w-4" />
+                <Edit className="h-3.5 w-3.5" />
               </button>
-              <button 
+              <button
                 onClick={() => handleDeleteService(service.id, service.name)}
-                className="btn-outline text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                className="inline-flex items-center justify-center btn-outline text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 py-1.5 px-2.5 text-sm min-w-[2.25rem]"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
