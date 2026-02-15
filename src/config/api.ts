@@ -137,12 +137,14 @@ export const API_ENDPOINTS = {
   BILLING: {
     INVOICES: '/v1/billing/invoices',
     INVOICE_BY_ID: (id: string) => `/v1/billing/invoices/${id}`,
+    ARCHIVE_INVOICE: (id: string) => `/v1/billing/invoices/${id}/archive`,
     PAYMENTS: '/v1/billing/payments',
     PAYMENT_BY_ID: (id: string) => `/v1/billing/payments/${id}`,
     PROCESS_PAYMENT: '/v1/billing/process-payment',
     GENERATE_INVOICE: '/v1/billing/generate-invoice',
     REVENUE_REPORT: '/v1/billing/reports/revenue',
     OUTSTANDING_REPORT: '/v1/billing/reports/outstanding',
+    SUMMARY: '/v1/billing/reports/summary',
   },
   
   // Physiotherapy

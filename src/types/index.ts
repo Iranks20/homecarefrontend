@@ -16,6 +16,8 @@ export interface User {
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  /** Consultation fee in UGX (specialists/therapists only; only visible to biller/admin) */
+  consultationFee?: number | null;
 }
 
 export interface Nurse {
@@ -53,6 +55,9 @@ export interface Patient {
   referredSpecialistName?: string;
   assignedNurseId?: string;
   assignedNurseName?: string;
+  /** Populated when fetched for biller: specialist/therapist with consultationFee for billing */
+  assignedSpecialist?: { id: string; name: string; email?: string; consultationFee?: number | null };
+  assignedTherapist?: { id: string; name: string; email?: string; consultationFee?: number | null };
   // Status tracking
   currentStage: 'new' | 'doctor-review' | 'specialist-treatment' | 'ready-for-discharge' | 'discharged';
   admissionDate: string;
@@ -129,7 +134,8 @@ export interface Service {
   name: string;
   description: string;
   category: string;
-  price: number;
+  /** Price in UGX; omitted for non-biller/non-admin (receptionist cannot see) */
+  price?: number;
   duration: number; // in minutes
   features: string[];
   image?: string;
@@ -170,7 +176,24 @@ export interface Invoice {
   dueDate: string;
   status: 'paid' | 'pending' | 'overdue';
   description: string;
+  archivedAt?: string | null;
   createdAt?: string;
+}
+
+export interface BillingSummary {
+  period: string;
+  dateFrom?: string;
+  dateTo?: string;
+  revenue: number;
+  revenueCount: number;
+  totalInvoiced: number;
+  totalPending: number;
+  pendingCount: number;
+  totalOverdue: number;
+  overdueCount: number;
+  paidInPeriod: number;
+  paidCount: number;
+  profit: number;
 }
 
 export interface Notification {

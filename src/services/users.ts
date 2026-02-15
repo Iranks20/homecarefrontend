@@ -37,6 +37,8 @@ export interface UpdateUserPayload {
   licenseNumber?: string;
   avatar?: string;
   isActive?: boolean;
+  /** Consultation fee in UGX (billers/admins only, for specialists/therapists) */
+  consultationFee?: number | null;
 }
 
 const ROLE_SLUGS: User['role'][] = [
@@ -112,6 +114,7 @@ function normalizeUser(user: any): User {
     isActive: user.isActive ?? true,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
+    consultationFee: user.consultationFee != null ? user.consultationFee : undefined,
   };
 }
 

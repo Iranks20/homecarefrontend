@@ -19,6 +19,7 @@ import {
   Gauge,
   Download,
   Printer,
+  TestTube,
 } from 'lucide-react';
 import {
   LineChart,
@@ -33,6 +34,7 @@ import { useApi, useApiMutation } from '../hooks/useApi';
 import { patientService } from '../services/patients';
 import { healthRecordService } from '../services/healthRecords';
 import { billingService } from '../services/billing';
+import { investigationRequestService } from '../services/investigationRequests';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import AddEditHealthRecordModal from '../components/AddEditHealthRecordModal';
@@ -44,6 +46,7 @@ import type {
   ProgressRecord,
   PatientCase,
   HealthRecordUpdate,
+  InvestigationRequest,
 } from '../types';
 
 interface PatientProfileData {
@@ -61,9 +64,16 @@ export default function PatientProfile() {
   const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
   const canViewBilling = user?.role === 'admin' || user?.role === 'biller';
   const [isPdfPreparing, setIsPdfPreparing] = useState(false);
+  const [showRequestLabModal, setShowRequestLabModal] = useState(false);
+  const [requestLabTest, setRequestLabTest] = useState('');
+  const [requestLabTestOther, setRequestLabTestOther] = useState('');
+  const [requestLabNotes, setRequestLabNotes] = useState('');
+  const [requestLabPriority, setRequestLabPriority] = useState<'ROUTINE' | 'URGENT' | 'STAT'>('ROUTINE');
 
   // Check if user can record vitals (nurses, specialists, therapists, admin)
   const canRecordVitals = user?.role === 'nurse' || user?.role === 'specialist' || user?.role === 'therapist' || user?.role === 'admin';
+  // Receptionist, biller, specialist, therapist, admin can request labs (cannot see results; lab attendant can)
+  const canRequestLab = user?.role === 'receptionist' || user?.role === 'biller' || user?.role === 'specialist' || user?.role === 'therapist' || user?.role === 'admin';
 
   const {
     data: profileData,
@@ -96,6 +106,18 @@ export default function PatientProfile() {
   }, [id]);
 
   const invoices = invoicesData?.invoices ?? [];
+
+  const { data: labRequestsData, refetch: refetchLabRequests } = useApi(
+    async (): Promise<{ requests: InvestigationRequest[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+      if (!id) return { requests: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } };
+      const res = await investigationRequestService.list({ patientId: id, limit: 50 });
+      return { requests: res.requests ?? [], pagination: res.pagination };
+    },
+    [id]
+  );
+  const labRequests = labRequestsData?.requests ?? [];
+
+  const createLabRequestMutation = useApiMutation(investigationRequestService.create.bind(investigationRequestService));
 
   const patient = profileData?.patient;
 
@@ -290,6 +312,61 @@ export default function PatientProfile() {
       });
     } finally {
       setIsPdfPreparing(false);
+    }
+  };
+
+  const LAB_REQUEST_OPTIONS = [
+    'CBC', 'Malaria RDT', 'Renal Function Test', 'Liver Function Test', 'CRP', 'Extended Electrolyte Panel',
+    'Fasting Blood Sugar', 'HbA1c', 'Lipid Profile', 'Thyroid Function Test', 'Urinalysis', 'Stool Analysis',
+    'Blood Culture', 'Widal Test',
+  ];
+
+  const handleSubmitLabRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    const investigationName = requestLabTest === 'Other' ? requestLabTestOther.trim() : requestLabTest;
+    if (!investigationName) {
+      addNotification({
+        title: 'Validation',
+        message: 'Please select or enter a test.',
+        type: 'error',
+        userId: '',
+        priority: 'medium',
+        category: 'system',
+      });
+      return;
+    }
+    try {
+      await createLabRequestMutation.mutate({
+        patientId: id,
+        investigationName,
+        priority: requestLabPriority,
+        notes: requestLabNotes || undefined,
+      });
+      addNotification({
+        title: 'Lab request submitted',
+        message: `${investigationName} has been requested. Lab staff will process it; you will see status updates here.`,
+        type: 'success',
+        userId: '',
+        priority: 'low',
+        category: 'system',
+      });
+      setShowRequestLabModal(false);
+      setRequestLabTest('');
+      setRequestLabTestOther('');
+      setRequestLabNotes('');
+      setRequestLabPriority('ROUTINE');
+      refetchLabRequests();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string }; message?: string }; message?: string })?.response?.data?.message ?? (err as Error)?.message ?? 'Failed to submit lab request';
+      addNotification({
+        title: 'Request failed',
+        message: String(msg),
+        type: 'error',
+        userId: '',
+        priority: 'medium',
+        category: 'system',
+      });
     }
   };
 
@@ -582,6 +659,56 @@ export default function PatientProfile() {
             </div>
             ) : (
               <p className="text-sm text-gray-500">No recent progress records.</p>
+            )}
+          </div>
+
+          {/* Lab Requests */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <TestTube className="h-5 w-5 text-primary-500" />
+                Lab Requests
+              </h3>
+              {canRequestLab && (
+                <button
+                  type="button"
+                  onClick={() => setShowRequestLabModal(true)}
+                  className="btn-primary text-sm py-2 px-3 flex items-center gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  Request Lab
+                </button>
+              )}
+            </div>
+            {labRequests.length === 0 ? (
+              <p className="text-sm text-gray-500">No lab requests for this patient.</p>
+            ) : (
+              <div className="space-y-2">
+                {labRequests.map((req) => (
+                  <div key={req.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">{req.investigationName}</span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        {new Date(req.requestedAt).toLocaleDateString()} · {req.requestedByName}
+                      </span>
+                      {req.notes && <p className="text-xs text-gray-500 mt-0.5 truncate max-w-md">{req.notes}</p>}
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                        req.status === 'COMPLETED'
+                          ? 'bg-green-100 text-green-800'
+                          : req.status === 'IN_PROGRESS'
+                          ? 'bg-blue-100 text-blue-800'
+                          : req.status === 'CANCELLED'
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {req.status === 'PENDING' ? 'Pending' : req.status === 'IN_PROGRESS' ? 'In Progress' : req.status === 'COMPLETED' ? 'Done' : 'Cancelled'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
@@ -878,6 +1005,81 @@ export default function PatientProfile() {
           mode="add"
           patientId={id}
         />
+      )}
+
+      {/* Lab Request Modal */}
+      {showRequestLabModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowRequestLabModal(false)} />
+            <div className="relative w-full max-w-lg rounded-lg bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <h3 className="text-lg font-semibold text-gray-900">Lab Request Form</h3>
+                <button type="button" onClick={() => setShowRequestLabModal(false)} className="text-gray-400 hover:text-gray-600">
+                  ×
+                </button>
+              </div>
+              <p className="px-6 pt-2 text-sm text-gray-600">Patient: <strong>{patient?.name}</strong></p>
+              <form onSubmit={handleSubmitLabRequest} className="px-6 py-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Test / Investigation <span className="text-red-500">*</span></label>
+                  <select
+                    value={requestLabTest}
+                    onChange={(e) => setRequestLabTest(e.target.value)}
+                    className="input-field"
+                    required
+                  >
+                    <option value="">Select test or choose Other</option>
+                    {LAB_REQUEST_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                    <option value="Other">Other (specify below)</option>
+                  </select>
+                  {requestLabTest === 'Other' && (
+                    <input
+                      type="text"
+                      value={requestLabTestOther}
+                      onChange={(e) => setRequestLabTestOther(e.target.value)}
+                      placeholder="Specify test/investigation name"
+                      className="input-field mt-2"
+                      maxLength={200}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    value={requestLabPriority}
+                    onChange={(e) => setRequestLabPriority(e.target.value as 'ROUTINE' | 'URGENT' | 'STAT')}
+                    className="input-field"
+                  >
+                    <option value="ROUTINE">Routine</option>
+                    <option value="URGENT">Urgent</option>
+                    <option value="STAT">Stat</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason for request / Clinical notes</label>
+                  <textarea
+                    value={requestLabNotes}
+                    onChange={(e) => setRequestLabNotes(e.target.value)}
+                    placeholder="e.g. Pre-op workup, routine monitoring"
+                    className="input-field resize-none"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setShowRequestLabModal(false)} className="btn-outline">
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary" disabled={createLabRequestMutation.loading}>
+                    {createLabRequestMutation.loading ? 'Submitting...' : 'Submit Lab Request'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

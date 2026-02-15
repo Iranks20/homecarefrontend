@@ -13,6 +13,9 @@ import {
   AlertCircle,
   X,
   Printer,
+  Archive,
+  BarChart3,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Invoice } from '../types';
@@ -22,15 +25,41 @@ import { patientService } from '../services/patients';
 import servicesService from '../services/services';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
+
+const formatUgx = (n: number) => `${Number(n).toLocaleString()} UGX`;
+
+function escapeCsv(value: string | number): string {
+  const s = String(value);
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function Billing() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'unpaid' | 'paid' | 'all'>('unpaid');
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [dateFilter, setDateFilter] = useState('all');
+  const [reportPeriod, setReportPeriod] = useState<'day' | 'week' | 'month'>('month');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const { addNotification } = useNotifications();
 
   const {
@@ -38,7 +67,20 @@ export default function Billing() {
     loading: loadingInvoices,
     error: invoicesError,
     refetch: refetchInvoices,
-  } = useApi(() => billingService.getInvoices({ limit: 200 }), []);
+  } = useApi(
+    () =>
+      billingService.getInvoices({
+        limit: 500,
+        status: statusFilter,
+        includeArchived,
+      }),
+    [statusFilter, includeArchived]
+  );
+
+  const { data: summaryData, refetch: refetchSummary } = useApi(
+    () => billingService.getBillingSummary({ period: reportPeriod }),
+    [reportPeriod]
+  );
 
   const { data: patientsData } = useApi(() => patientService.getPatients({ limit: 200 }), []);
   const { data: servicesData } = useApi(() => servicesService.getServices({ limit: 200 }), []);
@@ -46,11 +88,13 @@ export default function Billing() {
   const invoices = invoicesData?.invoices ?? [];
   const patients = patientsData?.patients ?? [];
   const services = servicesData?.services ?? [];
+  const summary = summaryData ?? null;
 
   const createInvoiceMutation = useApiMutation(billingService.createInvoice.bind(billingService));
   const updateInvoiceMutation = useApiMutation(
     (params: { id: string; data: Partial<Invoice> }) => billingService.updateInvoice(params.id, params.data)
   );
+  const archiveInvoiceMutation = useApiMutation(billingService.archiveInvoice.bind(billingService));
   const deleteInvoiceMutation = useApiMutation(billingService.deleteInvoice.bind(billingService));
 
   const filteredInvoices = useMemo(() => {
@@ -59,24 +103,19 @@ export default function Billing() {
         (invoice.patientName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (invoice.serviceName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (invoice.id?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
 
       let matchesDate = true;
       if (dateFilter !== 'all') {
         const invoiceDate = new Date(invoice.date);
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-        if (dateFilter === 'last30') {
-          matchesDate = invoiceDate >= thirtyDaysAgo;
-        } else if (dateFilter === 'overdue') {
-          matchesDate = invoice.status === 'overdue';
-        }
+        if (dateFilter === 'last30') matchesDate = invoiceDate >= thirtyDaysAgo;
+        else if (dateFilter === 'overdue') matchesDate = invoice.status === 'overdue';
       }
 
-      return matchesSearch && matchesStatus && matchesDate;
+      return matchesSearch && matchesDate;
     });
-  }, [invoices, searchTerm, statusFilter, dateFilter]);
+  }, [invoices, searchTerm, dateFilter]);
 
   const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + invoice.amount, 0);
   const paidAmount = filteredInvoices
@@ -147,13 +186,31 @@ export default function Billing() {
     }
   };
 
-  const handleDeleteInvoice = async (invoiceId: string, patientName: string) => {
-    if (!window.confirm(`Are you sure you want to delete ${patientName}'s invoice?`)) {
-      return;
+  const handleArchiveInvoice = async (invoiceId: string, patientName: string) => {
+    if (!window.confirm(`Archive invoice for ${patientName}? It will be hidden from the default list.`)) return;
+    try {
+      await archiveInvoiceMutation.mutate(invoiceId);
+      toast.success(`Invoice for ${patientName} has been archived.`);
+      addNotification({
+        title: 'Invoice archived',
+        message: `Invoice for ${patientName} has been archived.`,
+        type: 'success',
+        userId: 'system',
+        priority: 'medium',
+        category: 'system',
+      });
+      await refetchInvoices();
+      await refetchSummary();
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Failed to archive invoice.');
     }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string, patientName: string) => {
+    if (!window.confirm(`Permanently delete ${patientName}'s invoice? This cannot be undone.`)) return;
     try {
       await deleteInvoiceMutation.mutate(invoiceId);
-      toast.success(`Invoice for ${patientName} has been deleted successfully.`);
+      toast.success(`Invoice for ${patientName} has been deleted.`);
       addNotification({
         title: 'Invoice deleted',
         message: `Invoice for ${patientName} has been removed.`,
@@ -163,16 +220,9 @@ export default function Billing() {
         category: 'system',
       });
       await refetchInvoices();
+      await refetchSummary();
     } catch (error: any) {
-      toast.error(error?.message ?? 'Failed to delete invoice. Please try again.');
-      addNotification({
-        title: 'Unable to delete invoice',
-        message: error?.message ?? 'Please try again later.',
-        type: 'error',
-        userId: 'system',
-        priority: 'high',
-        category: 'system',
-      });
+      toast.error(error?.message ?? 'Failed to delete invoice.');
     }
   };
 
@@ -294,13 +344,13 @@ export default function Billing() {
               <tr>
                 <td>${invoice.description || 'N/A'}</td>
                 <td>${invoice.serviceName || 'N/A'}</td>
-                <td>$${invoice.amount.toFixed(2)}</td>
+                <td>${formatUgx(invoice.amount)}</td>
               </tr>
             </tbody>
           </table>
           
           <div class="total">
-            <div class="total-amount">Total: $${invoice.amount.toFixed(2)}</div>
+            <div class="total-amount">Total: ${formatUgx(invoice.amount)}</div>
           </div>
           
           <div class="no-print" style="margin-top: 30px; text-align: center;">
@@ -317,14 +367,160 @@ export default function Billing() {
     toast.success('Invoice opened in new window. Use your browser\'s print function to save as PDF.');
   };
 
+  const exportInvoicesToCsv = () => {
+    const headers = ['Invoice ID', 'Patient', 'Service', 'Amount (UGX)', 'Date', 'Due Date', 'Status', 'Description'];
+    const rows = filteredInvoices.map((inv) => [
+      escapeCsv(inv.id),
+      escapeCsv(inv.patientName ?? ''),
+      escapeCsv(inv.serviceName ?? ''),
+      escapeCsv(inv.amount),
+      escapeCsv(new Date(inv.date).toLocaleDateString()),
+      escapeCsv(new Date(inv.dueDate).toLocaleDateString()),
+      escapeCsv(inv.status),
+      escapeCsv(inv.description ?? ''),
+    ]);
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const date = new Date().toISOString().slice(0, 10);
+    downloadBlob(blob, `invoices-${date}.csv`);
+    toast.success('Invoices exported to CSV.');
+  };
+
+  const exportSummaryToCsv = () => {
+    if (!summary) {
+      toast.info('No summary data to export.');
+      return;
+    }
+    const periodLabel = reportPeriod === 'day' ? 'Today' : reportPeriod === 'week' ? 'This Week' : 'This Month';
+    const rows = [
+      ['Billing Summary', periodLabel],
+      ['Revenue', formatUgx(summary.revenue)],
+      ['Revenue (payments count)', String(summary.revenueCount)],
+      ['Total Invoiced', formatUgx(summary.totalInvoiced)],
+      ['Total Pending', formatUgx(summary.totalPending)],
+      ['Pending count', String(summary.pendingCount)],
+      ['Total Overdue', formatUgx(summary.totalOverdue)],
+      ['Overdue count', String(summary.overdueCount)],
+      ['Paid in period', formatUgx(summary.paidInPeriod)],
+      ['Paid count', String(summary.paidCount)],
+      ['Profit', formatUgx(summary.profit)],
+    ];
+    const csv = rows.map((r) => r.map(escapeCsv).join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const date = new Date().toISOString().slice(0, 10);
+    downloadBlob(blob, `billing-summary-${reportPeriod}-${date}.csv`);
+    toast.success('Summary exported to CSV.');
+  };
+
+  const escapeHtml = (s: string) =>
+    String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const exportInvoicesToPdf = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to export.');
+      return;
+    }
+    const rows = filteredInvoices
+      .map(
+        (inv) => `
+      <tr>
+        <td>${escapeHtml(inv.id)}</td>
+        <td>${escapeHtml(inv.patientName ?? '')}</td>
+        <td>${escapeHtml(inv.serviceName ?? '')}</td>
+        <td>${formatUgx(inv.amount)}</td>
+        <td>${escapeHtml(new Date(inv.date).toLocaleDateString())}</td>
+        <td>${escapeHtml(new Date(inv.dueDate).toLocaleDateString())}</td>
+        <td>${escapeHtml(inv.status)}</td>
+      </tr>`
+      )
+      .join('');
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>Invoices Export</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+            th { background: #f5f5f5; }
+          </style>
+        </head>
+        <body>
+          <h1>Invoices</h1>
+          <p>Exported ${new Date().toLocaleString()} — ${filteredInvoices.length} record(s)</p>
+          <table>
+            <thead><tr>
+              <th>Invoice ID</th><th>Patient</th><th>Service</th><th>Amount</th><th>Date</th><th>Due Date</th><th>Status</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p class="no-print" style="margin-top: 20px;">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">Print / Save as PDF</button>
+          </p>
+        </body>
+      </html>`;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    toast.success('Export opened in new window. Use Print to save as PDF.');
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Billing & Invoices</h1>
           <p className="mt-1 text-sm text-gray-600">Manage invoices and payment tracking</p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportMenuOpen((o) => !o)}
+              onBlur={() => setTimeout(() => setExportMenuOpen(false), 150)}
+              className="btn-outline flex items-center gap-2"
+              aria-haspopup="true"
+              aria-expanded={exportMenuOpen}
+            >
+              <Download className="h-4 w-4" />
+              Export
+              <svg className="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {exportMenuOpen && (
+              <div className="absolute right-0 mt-1 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg z-20">
+                <button
+                  type="button"
+                  onClick={() => { setExportMenuOpen(false); exportInvoicesToCsv(); }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-green-600 shrink-0" />
+                  Invoices to CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setExportMenuOpen(false); exportSummaryToCsv(); }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                >
+                  <BarChart3 className="h-4 w-4 text-blue-600 shrink-0" />
+                  Summary to CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setExportMenuOpen(false); exportInvoicesToPdf(); }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                >
+                  <Printer className="h-4 w-4 text-gray-600 shrink-0" />
+                  Print list (PDF)
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={() => setIsAddModalOpen(true)} className="btn-primary flex items-center">
             <Plus className="h-4 w-4 mr-2" />
             Create Invoice
@@ -338,6 +534,53 @@ export default function Billing() {
         </div>
       )}
 
+      {/* Report period summary */}
+      <div className="card">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2 text-primary-600" />
+            Billing Reports
+          </h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Period:</span>
+            <select
+              value={reportPeriod}
+              onChange={(e) => setReportPeriod(e.target.value as 'day' | 'week' | 'month')}
+              className="input-field py-1.5 text-sm"
+            >
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="p-3 rounded-lg bg-green-50 border border-green-100">
+            <p className="text-xs font-medium text-gray-600">Revenue</p>
+            <p className="text-lg font-bold text-green-700">{summary ? formatUgx(summary.revenue) : '—'}</p>
+            <p className="text-xs text-gray-500">{summary?.revenueCount ?? 0} payments</p>
+          </div>
+          <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+            <p className="text-xs font-medium text-gray-600">Invoiced</p>
+            <p className="text-lg font-bold text-blue-700">{summary ? formatUgx(summary.totalInvoiced) : '—'}</p>
+          </div>
+          <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100">
+            <p className="text-xs font-medium text-gray-600">Pending</p>
+            <p className="text-lg font-bold text-yellow-700">{summary ? formatUgx(summary.totalPending) : '—'}</p>
+            <p className="text-xs text-gray-500">{summary?.pendingCount ?? 0} invoices</p>
+          </div>
+          <div className="p-3 rounded-lg bg-red-50 border border-red-100">
+            <p className="text-xs font-medium text-gray-600">Overdue</p>
+            <p className="text-lg font-bold text-red-700">{summary ? formatUgx(summary.totalOverdue) : '—'}</p>
+            <p className="text-xs text-gray-500">{summary?.overdueCount ?? 0} invoices</p>
+          </div>
+          <div className="p-3 rounded-lg bg-primary-50 border border-primary-100">
+            <p className="text-xs font-medium text-gray-600">Profit</p>
+            <p className="text-lg font-bold text-primary-700">{summary ? formatUgx(summary.profit) : '—'}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card">
           <div className="flex items-center">
@@ -345,12 +588,11 @@ export default function Billing() {
               <DollarSign className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Amount</p>
-              <p className="text-2xl font-semibold text-gray-900">${totalAmount.toFixed(2)}</p>
+              <p className="text-sm font-medium text-gray-600">Total (this list)</p>
+              <p className="text-2xl font-semibold text-gray-900">{formatUgx(totalAmount)}</p>
             </div>
           </div>
         </div>
-
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0 p-3 rounded-lg bg-green-100">
@@ -358,11 +600,10 @@ export default function Billing() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Paid</p>
-              <p className="text-2xl font-semibold text-gray-900">${paidAmount.toFixed(2)}</p>
+              <p className="text-2xl font-semibold text-gray-900">{formatUgx(paidAmount)}</p>
             </div>
           </div>
         </div>
-
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0 p-3 rounded-lg bg-yellow-100">
@@ -370,11 +611,10 @@ export default function Billing() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-semibold text-gray-900">${pendingAmount.toFixed(2)}</p>
+              <p className="text-2xl font-semibold text-gray-900">{formatUgx(pendingAmount)}</p>
             </div>
           </div>
         </div>
-
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0 p-3 rounded-lg bg-red-100">
@@ -382,7 +622,7 @@ export default function Billing() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Overdue</p>
-              <p className="text-2xl font-semibold text-gray-900">${overdueAmount.toFixed(2)}</p>
+              <p className="text-2xl font-semibold text-gray-900">{formatUgx(overdueAmount)}</p>
             </div>
           </div>
         </div>
@@ -403,12 +643,26 @@ export default function Billing() {
             </div>
           </div>
           <div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field">
-              <option value="all">All Status</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending</option>
-              <option value="overdue">Overdue</option>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'unpaid' | 'paid' | 'all')}
+              className="input-field"
+            >
+              <option value="unpaid">Unpaid (Pending + Overdue)</option>
+              <option value="paid">Paid only</option>
+              <option value="all">All statuses</option>
             </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeArchived}
+                onChange={(e) => setIncludeArchived(e.target.checked)}
+                className="rounded border-gray-300 text-primary-600"
+              />
+              Include archived
+            </label>
           </div>
           <div>
             <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="input-field">
@@ -458,7 +712,7 @@ export default function Billing() {
                       <div className="text-sm text-gray-500 truncate max-w-xs">{invoice.description}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">${invoice.amount.toFixed(2)}</div>
+                      <div className="text-sm font-medium text-gray-900">{formatUgx(invoice.amount)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -515,12 +769,23 @@ export default function Billing() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteInvoice(invoice.id, invoice.patientName)}
-                        className="text-red-600 hover:text-red-800"
+                        onClick={() => handleArchiveInvoice(invoice.id, invoice.patientName)}
+                        className="text-amber-600 hover:text-amber-800"
+                        title="Archive invoice"
                       >
-                        <Trash2 className="h-4 w-4 inline mr-1" />
-                        Delete
+                        <Archive className="h-4 w-4 inline mr-1" />
+                        Archive
                       </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDeleteInvoice(invoice.id, invoice.patientName)}
+                          className="text-red-600 hover:text-red-800 ml-2"
+                          title="Permanently delete (admin only)"
+                        >
+                          <Trash2 className="h-4 w-4 inline mr-1" />
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -639,7 +904,7 @@ export default function Billing() {
                       <p className="text-sm text-gray-600 mt-1">{selectedInvoice.description}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900">${selectedInvoice.amount.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-gray-900">{formatUgx(selectedInvoice.amount)}</p>
                     </div>
                   </div>
                 </div>
@@ -649,7 +914,7 @@ export default function Billing() {
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold text-gray-900">Total Amount</span>
-                  <span className="text-2xl font-bold text-gray-900">${selectedInvoice.amount.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-gray-900">{formatUgx(selectedInvoice.amount)}</span>
                 </div>
               </div>
 

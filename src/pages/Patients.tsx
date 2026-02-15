@@ -35,8 +35,9 @@ export default function Patients() {
 
   // Check if user can add patients (only admin and receptionist)
   const canAddPatient = user?.role === 'admin' || user?.role === 'receptionist';
-  // Only admin can edit or archive patient information (receptionists/nurses add; others view only)
-  const canEditPatient = user?.role === 'admin';
+  // Admin and receptionist can edit patient details; only admin can archive
+  const canEditPatient = user?.role === 'admin' || user?.role === 'receptionist';
+  const canArchivePatient = user?.role === 'admin';
 
   // Load services for displaying patient services
   const {
@@ -598,24 +599,24 @@ export default function Patients() {
                           View
                         </Link>
                         {canEditPatient && (
-                          <>
-                            <button 
-                              onClick={() => openEditModal(patient)}
-                              className="text-secondary-600 hover:text-secondary-900 inline-flex items-center"
-                              type="button"
-                            >
-                              <Edit className="mr-1 h-4 w-4" />
-                              Edit
-                            </button>
-                            <button 
-                              onClick={() => handleDeletePatient(patient.id)}
-                              className="text-red-600 hover:text-red-900 inline-flex items-center"
-                              type="button"
-                            >
-                              <Trash2 className="mr-1 h-4 w-4" />
-                              Archive
-                            </button>
-                          </>
+                          <button 
+                            onClick={() => openEditModal(patient)}
+                            className="text-secondary-600 hover:text-secondary-900 inline-flex items-center"
+                            type="button"
+                          >
+                            <Edit className="mr-1 h-4 w-4" />
+                            Edit
+                          </button>
+                        )}
+                        {canArchivePatient && (
+                          <button 
+                            onClick={() => handleDeletePatient(patient.id)}
+                            className="text-red-600 hover:text-red-900 inline-flex items-center"
+                            type="button"
+                          >
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            Archive
+                          </button>
                         )}
                       </div>
                     </td>
@@ -634,6 +635,7 @@ export default function Patients() {
         mode="add"
         specialists={specialists}
         therapists={therapists}
+        services={servicesList.map((s) => ({ id: s.id, name: s.name }))}
       />
 
       <AddEditPatientModal
@@ -647,6 +649,7 @@ export default function Patients() {
         mode="edit"
         specialists={specialists}
         therapists={therapists}
+        services={servicesList.map((s) => ({ id: s.id, name: s.name }))}
       />
     </div>
   );

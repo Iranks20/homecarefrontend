@@ -21,6 +21,8 @@ import { Link } from 'react-router-dom';
 interface PatientBill {
   patient: Patient;
   services: Service[];
+  /** Consultation fees from assigned specialist/therapist (UGX) */
+  assignmentFeeUgx: number;
   totalAmount: number;
   paidAmount: number;
   pendingAmount: number;
@@ -50,22 +52,34 @@ export default function BillerDashboard() {
   const services = servicesData?.services ?? [];
   const invoices = invoicesData?.invoices ?? [];
 
-  // Calculate patient bills based on their selected services
+  // Calculate patient bills: services + assignment fees (specialist/therapist consultation in UGX)
   const patientBills: PatientBill[] = useMemo(() => {
     return patients
       .filter((patient) => {
         const hasServices = (patient as any).serviceIds && (patient as any).serviceIds.length > 0;
-        return hasServices;
+        const hasAssignment =
+          (patient as any).assignedSpecialistId || (patient as any).assignedTherapistId;
+        return hasServices || hasAssignment;
       })
       .map((patient) => {
         const serviceIds = (patient as any).serviceIds || [];
         const patientServices = services.filter((service) => serviceIds.includes(service.id));
-        
+        const specialistFee =
+          (patient as any).assignedSpecialist?.consultationFee != null
+            ? Number((patient as any).assignedSpecialist.consultationFee)
+            : 0;
+        const therapistFee =
+          (patient as any).assignedTherapist?.consultationFee != null
+            ? Number((patient as any).assignedTherapist.consultationFee)
+            : 0;
+        const assignmentFeeUgx = specialistFee + therapistFee;
+
         // Get invoices for this patient
         const patientInvoices = invoices.filter((invoice) => invoice.patientId === patient.id);
-        
-        // Calculate amounts
-        const totalAmount = patientServices.reduce((sum, service) => sum + (service.price || 0), 0);
+
+        // Total: services (existing logic, same currency as services) + assignment fees in UGX
+        const servicesTotal = patientServices.reduce((sum, service) => sum + (service.price || 0), 0);
+        const totalAmount = servicesTotal + assignmentFeeUgx;
         const paidAmount = patientInvoices
           .filter((inv) => inv.status === 'paid')
           .reduce((sum, inv) => sum + inv.amount, 0);
@@ -74,6 +88,7 @@ export default function BillerDashboard() {
         return {
           patient,
           services: patientServices,
+          assignmentFeeUgx,
           totalAmount,
           paidAmount,
           pendingAmount,
@@ -138,7 +153,7 @@ export default function BillerDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Biller Dashboard</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Manage patient bills and payments based on selected services
+          Manage patient bills: services and consultation fees (specialist/therapist assignments)
         </p>
       </div>
 
@@ -161,7 +176,7 @@ export default function BillerDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                ${stats.totalRevenue.toFixed(2)}
+                {stats.totalRevenue.toLocaleString()} UGX
               </p>
             </div>
             <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -175,7 +190,7 @@ export default function BillerDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-600">Paid Amount</p>
               <p className="text-2xl font-bold text-green-600 mt-1">
-                ${stats.totalPaid.toFixed(2)}
+                {stats.totalPaid.toLocaleString()} UGX
               </p>
             </div>
             <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -189,7 +204,7 @@ export default function BillerDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-600">Pending Amount</p>
               <p className="text-2xl font-bold text-yellow-600 mt-1">
-                ${stats.totalPending.toFixed(2)}
+                {stats.totalPending.toLocaleString()} UGX
               </p>
             </div>
             <div className="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -257,7 +272,7 @@ export default function BillerDashboard() {
             <p className="text-sm text-gray-500 mt-1">
               {searchTerm || statusFilter !== 'all'
                 ? 'Try adjusting your search or filter criteria'
-                : 'Patients with selected services will appear here'}
+                : 'Patients with services or specialist/therapist assignments will appear here'}
             </p>
           </div>
         ) : (
@@ -308,6 +323,11 @@ export default function BillerDashboard() {
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900">
                           {bill.services.length} {bill.services.length === 1 ? 'service' : 'services'}
+                          {bill.assignmentFeeUgx > 0 && (
+                            <span className="text-xs text-gray-600 block mt-0.5">
+                              + {bill.assignmentFeeUgx.toLocaleString()} UGX consultation
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
                           {bill.services.slice(0, 2).map((s) => s.name).join(', ')}
@@ -316,17 +336,17 @@ export default function BillerDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900">
-                          ${bill.totalAmount.toFixed(2)}
+                          {bill.totalAmount.toLocaleString()} UGX
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-green-600 font-medium">
-                          ${bill.paidAmount.toFixed(2)}
+                          {bill.paidAmount.toLocaleString()} UGX
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-yellow-600 font-medium">
-                          ${bill.pendingAmount.toFixed(2)}
+                          {bill.pendingAmount.toLocaleString()} UGX
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

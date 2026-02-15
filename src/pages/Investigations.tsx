@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, TestTube, User, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, Search, User, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import { investigationRequestService } from '../services/investigationRequests';
@@ -44,8 +44,9 @@ const STATUS_CLASSES: Record<string, string> = {
 export default function Investigations() {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const canRequest = user?.role === 'specialist' || user?.role === 'therapist' || user?.role === 'admin';
+  const canRequest = user?.role === 'receptionist' || user?.role === 'biller' || user?.role === 'specialist' || user?.role === 'therapist' || user?.role === 'admin';
   const canFulfill = user?.role === 'lab_attendant' || user?.role === 'admin';
+  const canViewResults = user?.role === 'lab_attendant' || user?.role === 'admin' || user?.role === 'specialist' || user?.role === 'therapist';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -60,7 +61,10 @@ export default function Investigations() {
     () => investigationRequestService.list({ limit: 100 }),
     []
   );
-  const { data: patientsData } = useApi(() => patientService.getPatients({ limit: 500 }), []);
+  const { data: patientsData, loading: loadingPatients } = useApi(
+    () => patientService.getPatients({ limit: 200, page: 1 }),
+    []
+  );
   const patients = patientsData?.patients ?? [];
   const requestsList = requestsData?.requests ?? [];
 
@@ -173,16 +177,15 @@ export default function Investigations() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <TestTube className="h-6 w-6 text-primary-500" />
-            Investigations
+          <h1 className="text-2xl font-bold text-gray-900">
+            Lab Requests
           </h1>
           <p className="mt-1 text-sm text-gray-600">
             {canRequest && canFulfill
-              ? 'Request investigations (specialist/therapist) and manage lab requests (lab attendant).'
+              ? 'Submit lab requests for patients and manage them (collect samples, record results).'
               : canRequest
-              ? 'Request lab investigations for patients. Lab attendant will collect samples and record results.'
-              : 'Manage investigation requests: collect samples and record lab details.'}
+              ? 'Submit lab requests for patients. Lab staff will process requests and record results; you will see status updates only.'
+              : 'Manage lab requests: collect samples and record lab results.'}
           </p>
         </div>
         {canRequest && (
@@ -193,7 +196,7 @@ export default function Investigations() {
               className="btn-primary flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              Request Investigation
+              New Lab Request
             </button>
           </div>
         )}
@@ -345,7 +348,7 @@ export default function Investigations() {
                             Mark Completed
                           </button>
                         )}
-                        {req.status === 'PENDING' || req.status === 'IN_PROGRESS' ? (
+                        {(req.status === 'PENDING' || req.status === 'IN_PROGRESS') && canViewResults ? (
                           <Link
                             to="/health-records"
                             className="ml-2 text-primary-600 hover:text-primary-900 text-xs"
@@ -369,7 +372,7 @@ export default function Investigations() {
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowRequestModal(false)} />
             <div className="relative w-full max-w-lg rounded-lg bg-white shadow-xl">
               <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                <h3 className="text-lg font-semibold text-gray-900">Request Investigation</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Lab Request Form</h3>
                 <button type="button" onClick={() => setShowRequestModal(false)} className="text-gray-400 hover:text-gray-600">
                   ×
                 </button>
@@ -382,32 +385,36 @@ export default function Investigations() {
                     onChange={(e) => setRequestPatientId(e.target.value)}
                     className="input-field"
                     required
+                    disabled={loadingPatients}
                   >
-                    <option value="">Select patient</option>
+                    <option value="">
+                      {loadingPatients ? 'Loading patients...' : patients.length === 0 ? 'No patients in system' : 'Select patient'}
+                    </option>
                     {patients.map((p) => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Investigation <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Test / Investigation <span className="text-red-500">*</span></label>
                   <select
                     value={requestInvestigation}
                     onChange={(e) => setRequestInvestigation(e.target.value)}
                     className="input-field"
                     required
                   >
-                    <option value="">Select or choose Other to type</option>
-                    {INVESTIGATION_OPTIONS.map((opt) => (
+                    <option value="">Select test or choose Other</option>
+                    {INVESTIGATION_OPTIONS.filter((o) => o !== 'Other').map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
+                    <option value="Other">Other (specify below)</option>
                   </select>
                   {requestInvestigation === 'Other' && (
                     <input
                       type="text"
                       value={requestInvestigationOther}
                       onChange={(e) => setRequestInvestigationOther(e.target.value)}
-                      placeholder="Type investigation name"
+                      placeholder="Specify test/investigation name"
                       className="input-field mt-2"
                       maxLength={200}
                     />
@@ -426,13 +433,13 @@ export default function Investigations() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason for request / Clinical notes</label>
                   <textarea
                     value={requestNotes}
                     onChange={(e) => setRequestNotes(e.target.value)}
-                    placeholder="Optional notes for lab"
+                    placeholder="e.g. Pre-op workup, routine monitoring, clinical indication"
                     className="input-field resize-none"
-                    rows={2}
+                    rows={3}
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
@@ -440,7 +447,7 @@ export default function Investigations() {
                     Cancel
                   </button>
                   <button type="submit" className="btn-primary" disabled={createMutation.loading}>
-                    {createMutation.loading ? 'Submitting...' : 'Submit Request'}
+                    {createMutation.loading ? 'Submitting...' : 'Submit Lab Request'}
                   </button>
                 </div>
               </form>

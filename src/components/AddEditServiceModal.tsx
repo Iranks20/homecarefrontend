@@ -236,7 +236,7 @@ export default function AddEditServiceModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price (USD) *
+                  Price (UGX) *
                 </label>
                 <input
                   type="number"
@@ -245,9 +245,9 @@ export default function AddEditServiceModal({
                   onChange={handleInputChange}
                   required
                   min="0"
-                  step="0.01"
+                  step="1"
                   className="input-field"
-                  placeholder="Enter price"
+                  placeholder="Enter price in UGX"
                   disabled={isSubmitting}
                 />
               </div>

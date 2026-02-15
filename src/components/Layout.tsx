@@ -27,7 +27,8 @@ import {
   Phone,
   Heart,
   Shield,
-  TestTube
+  TestTube,
+  DollarSign
 } from 'lucide-react';
 import { User as UserType } from '../types';
 
@@ -45,9 +46,11 @@ const getNavigationForRole = (role: string) => {
   const receptionistNavigation = [
     ...baseNavigation,
     { name: 'Patients', href: '/patients', icon: Users },
+    { name: 'Lab Requests', href: '/investigations', icon: TestTube },
     { name: 'Appointments', href: '/scheduling?view=appointments', icon: Calendar },
     { name: 'Specialists', href: '/specialists', icon: Activity },
     { name: 'Therapists', href: '/therapists', icon: Stethoscope },
+    { name: 'Billers', href: '/billers', icon: CreditCard },
     // TODO: Re-enable Communication feature in the future
     // { name: 'Communication', href: '/communication', icon: MessageSquare },
   ];
@@ -87,6 +90,7 @@ const getNavigationForRole = (role: string) => {
     { name: 'Nurses', href: '/nurses', icon: Heart },
     { name: 'Lab Attendants', href: '/lab-attendants', icon: TestTube },
     { name: 'Billers', href: '/billers', icon: CreditCard },
+    { name: 'Consultation rates', href: '/consultation-rates', icon: DollarSign },
     { name: 'Scheduling', href: '/scheduling', icon: Calendar },
     { name: 'Services', href: '/services', icon: Package },
     { name: 'Investigations', href: '/investigations', icon: TestTube },
@@ -100,7 +104,10 @@ const getNavigationForRole = (role: string) => {
   // Biller navigation - finance and billing focused
   const billerNavigation = [
     ...baseNavigation,
+    { name: 'Patients', href: '/patients', icon: UserCheck },
+    { name: 'Lab Requests', href: '/investigations', icon: TestTube },
     { name: 'Services', href: '/services', icon: Package },
+    { name: 'Consultation rates', href: '/consultation-rates', icon: DollarSign },
     { name: 'Billing', href: '/billing', icon: CreditCard },
   ];
 

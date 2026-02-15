@@ -3,6 +3,7 @@ import { Search, Plus, Eye, Edit, Phone, Mail, Trash2, CreditCard } from 'lucide
 import { toast } from 'react-toastify';
 import { User } from '../types';
 import AddEditBillerModal from '../components/AddEditBillerModal';
+import ViewBillerModal from '../components/ViewBillerModal';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import { userService } from '../services/users';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -17,8 +18,14 @@ export default function Billers() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedBiller, setSelectedBiller] = useState<User | null>(null);
   const { addNotification } = useNotifications();
+
+  const openViewModal = (biller: User) => {
+    setSelectedBiller(biller);
+    setIsViewModalOpen(true);
+  };
 
   const {
     data: billersData,
@@ -312,6 +319,14 @@ export default function Billers() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
                       <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => openViewModal(biller)}
+                          className="text-primary-600 hover:text-primary-900"
+                          title="View biller details"
+                        >
+                          <Eye className="mr-1 inline h-4 w-4" />
+                          View details
+                        </button>
                         {isAdmin && (
                           <>
                             <button 
@@ -374,6 +389,16 @@ export default function Billers() {
         onSave={handleEditBiller}
         biller={selectedBiller}
         mode="edit"
+      />
+
+      {/* View Biller Details Modal */}
+      <ViewBillerModal
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedBiller(null);
+        }}
+        biller={selectedBiller}
       />
     </div>
   );

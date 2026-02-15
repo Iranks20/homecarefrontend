@@ -37,6 +37,7 @@ import PhoneReminders from './pages/PhoneReminders';
 import HealthRecords from './pages/HealthRecords';
 import BillerDashboard from './pages/BillerDashboard';
 import Billers from './pages/Billers';
+import ConsultationRates from './pages/ConsultationRates';
 import Receptionists from './pages/Receptionists';
 import LabAttendants from './pages/LabAttendants';
 import Investigations from './pages/Investigations';
@@ -87,6 +88,7 @@ function AppContent() {
           <Route path="/specialists" element={<Specialists />} />
           <Route path="/therapists" element={<Therapists />} />
           <Route path="/billers" element={<Billers />} />
+          <Route path="/consultation-rates" element={<ConsultationRates />} />
           <Route path="/receptionists" element={<Receptionists />} />
           <Route path="/lab-attendants" element={<LabAttendants />} />
           <Route path="/investigations" element={<Investigations />} />

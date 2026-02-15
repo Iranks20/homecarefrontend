@@ -1,12 +1,15 @@
 import { apiService } from './api';
 import { API_ENDPOINTS } from '../config/api';
-import { Invoice, Payment, PaginatedResponse } from '../types';
+import { Invoice, Payment, PaginatedResponse, BillingSummary } from '../types';
 
 export interface InvoiceQueryParams {
   patientId?: string;
-  status?: Invoice['status'];
+  /** 'unpaid' (default) = pending+overdue only, 'paid', 'all' */
+  status?: string;
+  includeArchived?: boolean;
   dateFrom?: string;
   dateTo?: string;
+  period?: 'day' | 'week' | 'month';
   search?: string;
   page?: number;
   limit?: number;
@@ -49,6 +52,7 @@ type InvoiceApi = Invoice & {
 };
 
 function normalizeInvoice(invoice: InvoiceApi): Invoice {
+  const status = invoice.status?.toLowerCase() as Invoice['status'] | undefined;
   return {
     id: invoice.id,
     patientId: invoice.patientId,
@@ -58,8 +62,9 @@ function normalizeInvoice(invoice: InvoiceApi): Invoice {
     amount: invoice.amount,
     date: invoice.date,
     dueDate: invoice.dueDate,
-    status: invoice.status,
+    status: status ?? 'pending',
     description: invoice.description,
+    archivedAt: invoice.archivedAt ?? undefined,
     createdAt: invoice.createdAt,
   };
 }
@@ -69,12 +74,30 @@ export class BillingService {
     invoices: Invoice[];
     pagination?: PaginatedResponse<Invoice>['pagination'];
   }> {
-    const response = await apiService.get<InvoiceApi[]>(API_ENDPOINTS.BILLING.INVOICES, { params });
-    const invoices = Array.isArray(response.data) ? response.data : [];
+    const response = await apiService.get<InvoiceApi[] | { data?: InvoiceApi[]; pagination?: unknown }>(
+      API_ENDPOINTS.BILLING.INVOICES,
+      { params }
+    );
+    const raw = response as { data?: InvoiceApi[]; pagination?: PaginatedResponse<Invoice>['pagination'] };
+    const list = Array.isArray(raw.data) ? raw.data : Array.isArray((response as any).data) ? (response as any).data : [];
     return {
-      invoices: invoices.map(normalizeInvoice),
-      pagination: response.pagination,
+      invoices: list.map(normalizeInvoice),
+      pagination: raw.pagination ?? (response as any).pagination,
     };
+  }
+
+  async archiveInvoice(id: string): Promise<Invoice> {
+    const response = await apiService.patch<{ data?: InvoiceApi } | InvoiceApi>(API_ENDPOINTS.BILLING.ARCHIVE_INVOICE(id));
+    const raw = response as { data?: InvoiceApi };
+    return normalizeInvoice(raw.data ?? (response as InvoiceApi));
+  }
+
+  async getBillingSummary(params?: { period?: string; dateFrom?: string; dateTo?: string }): Promise<BillingSummary> {
+    const response = await apiService.get<{ data?: BillingSummary } & BillingSummary>(API_ENDPOINTS.BILLING.SUMMARY, {
+      params,
+    });
+    const raw = response as { data?: BillingSummary };
+    return raw.data ?? (response as BillingSummary);
   }
 
   async getInvoice(id: string): Promise<Invoice> {

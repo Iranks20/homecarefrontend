@@ -40,6 +40,12 @@ export interface PatientFormValues {
   referralSource?: string;
 }
 
+/** Service option for selection (price hidden for receptionist) */
+interface ServiceOption {
+  id: string;
+  name: string;
+}
+
 interface AddEditPatientModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,6 +54,8 @@ interface AddEditPatientModalProps {
   mode: 'add' | 'edit';
   specialists: SpecialistOption[];
   therapists: TherapistOption[];
+  /** Services for optional selection (prices not shown to receptionist) */
+  services?: ServiceOption[];
 }
 
 const DEFAULT_FORM: PatientFormValues = {
@@ -82,6 +90,7 @@ export default function AddEditPatientModal({
   mode,
   specialists,
   therapists,
+  services = [],
 }: AddEditPatientModalProps) {
   const [formData, setFormData] = useState<PatientFormValues>(DEFAULT_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -166,6 +175,16 @@ export default function AddEditPatientModal({
         newData.insuranceNumber = '';
       }
       return newData;
+    });
+  };
+
+  const toggleServiceId = (serviceId: string) => {
+    setFormData((prev) => {
+      const ids = prev.serviceIds ?? [];
+      const next = ids.includes(serviceId)
+        ? ids.filter((id) => id !== serviceId)
+        : [...ids, serviceId];
+      return { ...prev, serviceIds: next };
     });
   };
 
@@ -352,17 +371,6 @@ export default function AddEditPatientModal({
                   className="input-field mt-1"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Primary Condition</label>
-                <input
-                  type="text"
-                  name="condition"
-                  value={formData.condition}
-                  onChange={handleChange}
-                  className="input-field mt-1"
-                  placeholder="e.g., Cardiac rehabilitation, Post-surgical recovery"
-                />
-              </div>
             </div>
           </section>
 
@@ -450,17 +458,6 @@ export default function AddEditPatientModal({
                   onChange={handleChange}
                   className="input-field mt-1"
                   placeholder="+1 (555) 123-4567"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Allergies</label>
-                <input
-                  type="text"
-                  name="allergies"
-                  value={formData.allergies}
-                  onChange={handleChange}
-                  className="input-field mt-1"
-                  placeholder="Known allergies (medications, food, etc.)"
                 />
               </div>
             </div>
@@ -573,6 +570,37 @@ export default function AddEditPatientModal({
                   )}
                 </select>
               </div>
+            </div>
+
+            {/* Services (optional) - same list as /services; receptionist does not see prices */}
+            {services.length > 0 && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Services <span className="text-gray-500 font-normal">(optional)</span>
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Select services for this patient. Billing is managed by the biller.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {services.map((svc) => (
+                    <label
+                      key={svc.id}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(formData.serviceIds ?? []).includes(svc.id)}
+                        onChange={() => toggleServiceId(svc.id)}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm text-gray-900">{svc.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 mt-4">
               {mode === 'edit' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">

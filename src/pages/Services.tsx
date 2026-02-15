@@ -235,7 +235,9 @@ export default function Services() {
               <div className="flex items-center justify-between text-sm text-gray-600">
                 <div className="flex items-center">
                   <DollarSign className="h-4 w-4 mr-1" />
-                  ${service.price.toFixed(2)}
+                  {typeof service.price === 'number'
+                    ? `${service.price.toLocaleString()} UGX`
+                    : '—'}
                 </div>
                 <div className="flex items-center">
                   <Clock className="h-4 w-4 mr-1" />
@@ -312,7 +314,9 @@ export default function Services() {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className="flex items-center text-sm text-gray-600">
                     <DollarSign className="h-4 w-4 mr-2" />
-                    ${selectedService.price.toFixed(2)}
+                    {typeof selectedService.price === 'number'
+                      ? `${selectedService.price.toLocaleString()} UGX`
+                      : '—'}
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <Clock className="h-4 w-4 mr-2" />
@@ -367,10 +371,11 @@ export default function Services() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {categories.map((category) => {
             const categoryServices = servicesList.filter((s) => s.category === category);
-            const avgPrice = Math.round(
-              categoryServices.reduce((sum, s) => sum + s.price, 0) / categoryServices.length
-            );
-            
+            const prices = categoryServices.map((s) => s.price).filter((p): p is number => typeof p === 'number');
+            const avgPrice = prices.length > 0
+              ? Math.round(prices.reduce((sum, p) => sum + p, 0) / prices.length)
+              : null;
+
             return (
               <div key={category} className="p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-medium text-gray-900">{category}</h4>
@@ -378,7 +383,7 @@ export default function Services() {
                   {categoryServices.length} services
                 </p>
                 <p className="text-sm text-gray-600">
-                  From ${avgPrice}/hour
+                  {avgPrice != null ? `From ${avgPrice.toLocaleString()} UGX` : '—'}
                 </p>
               </div>
             );
