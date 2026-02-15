@@ -342,14 +342,13 @@ export default function AddEditUserModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address *
+                Email Address
               </label>
               <input
                 type="email"
                 name="email"
                 value={formState.email}
                 onChange={handleChange}
-                required
                 className="input-field"
                 placeholder="user@teamworkhomecare.com"
               />

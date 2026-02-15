@@ -120,7 +120,7 @@ export default function AddEditPatientModal({
 
       setFormData({
         name: patient.name,
-        email: patient.email,
+        email: patient.email ?? '',
         phone: patient.phone,
         dateOfBirth: patient.dateOfBirth
           ? new Date(patient.dateOfBirth).toISOString().split('T')[0]
@@ -332,14 +332,13 @@ export default function AddEditPatientModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Email Address<span className="text-red-500">*</span>
+                  Email Address
                 </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  required
                   className="input-field mt-1"
                   placeholder="jane@example.com"
                 />

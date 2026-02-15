@@ -316,14 +316,13 @@ export default function AddEditNurseModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Email address<span className="text-red-500">*</span>
+                  Email address
                 </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  required
                   className="input-field mt-1"
                   placeholder="sarah@example.com"
                 />

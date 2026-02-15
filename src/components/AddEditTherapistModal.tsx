@@ -367,14 +367,13 @@ export default function AddEditTherapistModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address *
+                  Email Address
                 </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  required
                   className="input-field"
                   placeholder="Enter email address"
                   disabled={isSaving || isEditMode}

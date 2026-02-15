@@ -150,7 +150,9 @@ export default function PatientRegistration() {
             <h3 className="font-semibold text-gray-900 mb-2">Patient Details</h3>
             <div className="text-sm text-gray-600 space-y-1">
               <p><strong>Name:</strong> {createdPatient.name}</p>
-              <p><strong>Email:</strong> {createdPatient.email}</p>
+              {createdPatient.email != null && createdPatient.email !== '' && (
+                <p><strong>Email:</strong> {createdPatient.email}</p>
+              )}
               <p><strong>Phone:</strong> {createdPatient.phone}</p>
               <p><strong>Patient ID:</strong> {createdPatient.id}</p>
             </div>
@@ -211,14 +213,13 @@ export default function PatientRegistration() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address *
+                Email Address
               </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                required
                 className="input-field"
                 placeholder="Enter email address"
               />

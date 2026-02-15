@@ -12,7 +12,7 @@ export interface PatientSearchParams {
 
 export interface PatientRegistrationData {
   name: string;
-  email: string;
+  email?: string;
   phone: string;
   dateOfBirth: string;
   address: string;

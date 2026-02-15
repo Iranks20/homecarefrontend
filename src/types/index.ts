@@ -2,7 +2,7 @@ export interface User {
   id: string;
   username?: string;
   name: string;
-  email: string;
+  email?: string;
   role: 'admin' | 'receptionist' | 'specialist' | 'therapist' | 'nurse' | 'biller' | 'lab_attendant';
   roleCode?: string;
   // Specialization fields
@@ -38,7 +38,7 @@ export interface Nurse {
 export interface Patient {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone: string;
   dateOfBirth: string;
   address: string;

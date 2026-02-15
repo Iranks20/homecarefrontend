@@ -13,7 +13,7 @@ export interface UserQueryParams {
 export interface CreateUserPayload {
   username: string;
   name: string;
-  email: string;
+  email?: string;
   password?: string;
   role: User['role'];
   phone?: string;

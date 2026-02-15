@@ -18,7 +18,7 @@ interface AddEditLabAttendantModalProps {
   onSave: (data: {
     username: string;
     name: string;
-    email: string;
+    email?: string;
     password?: string;
     phone?: string;
     department?: string;
@@ -93,10 +93,6 @@ export default function AddEditLabAttendantModal({
       setError('Name is required');
       return;
     }
-    if (!formData.email.trim()) {
-      setError('Email is required');
-      return;
-    }
     if (!isEdit && !formData.password.trim()) {
       setError('Password is required for new lab attendants');
       return;
@@ -116,7 +112,7 @@ export default function AddEditLabAttendantModal({
       } = {
         username: formData.username.trim().toLowerCase(),
         name: formData.name.trim(),
-        email: formData.email.trim(),
+        email: formData.email.trim() || undefined,
         phone: formData.phone.trim() || undefined,
         department: formData.department.trim() || undefined,
         isActive: formData.isActive,
@@ -193,7 +189,7 @@ export default function AddEditLabAttendantModal({
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Email Address <span className="text-red-500">*</span>
+                  Email Address
                 </label>
                 <input
                   type="email"
@@ -201,7 +197,6 @@ export default function AddEditLabAttendantModal({
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="lab@example.com"
                   className="input-field disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
-                  required
                   disabled={mode === 'edit'}
                 />
                 {mode === 'edit' && (
