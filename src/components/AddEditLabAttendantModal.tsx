@@ -103,7 +103,7 @@ export default function AddEditLabAttendantModal({
       const payload: {
         username: string;
         name: string;
-        email: string;
+        email?: string;
         password?: string;
         phone?: string;
         department?: string;

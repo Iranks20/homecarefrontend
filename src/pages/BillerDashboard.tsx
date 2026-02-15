@@ -1,15 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, Fragment } from 'react';
 import {
   DollarSign,
   Users,
   CreditCard,
-  TrendingUp,
   AlertCircle,
   CheckCircle,
   Clock,
   Search,
   Eye,
   FileText,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { patientService } from '../services/patients';
@@ -44,46 +45,33 @@ export default function BillerDashboard() {
   );
 
   const { data: invoicesData, loading: loadingInvoices } = useApi(
-    () => billingService.getInvoices({ limit: 500 }),
+    () => billingService.getInvoices({ limit: 500, status: 'all' }),
     []
   );
+
+  const [expandedPatientId, setExpandedPatientId] = useState<string | null>(null);
 
   const patients = patientsData?.patients ?? [];
   const services = servicesData?.services ?? [];
   const invoices = invoicesData?.invoices ?? [];
 
-  // Calculate patient bills: services + assignment fees (specialist/therapist consultation in UGX)
+  // Patient bills: one row per patient who has at least one invoice (consultation + services)
+  // Totals and line details come from invoices only
   const patientBills: PatientBill[] = useMemo(() => {
     return patients
-      .filter((patient) => {
-        const hasServices = (patient as any).serviceIds && (patient as any).serviceIds.length > 0;
-        const hasAssignment =
-          (patient as any).assignedSpecialistId || (patient as any).assignedTherapistId;
-        return hasServices || hasAssignment;
-      })
+      .filter((patient) => invoices.some((inv) => inv.patientId === patient.id))
       .map((patient) => {
-        const serviceIds = (patient as any).serviceIds || [];
-        const patientServices = services.filter((service) => serviceIds.includes(service.id));
-        const specialistFee =
-          (patient as any).assignedSpecialist?.consultationFee != null
-            ? Number((patient as any).assignedSpecialist.consultationFee)
-            : 0;
-        const therapistFee =
-          (patient as any).assignedTherapist?.consultationFee != null
-            ? Number((patient as any).assignedTherapist.consultationFee)
-            : 0;
-        const assignmentFeeUgx = specialistFee + therapistFee;
-
-        // Get invoices for this patient
         const patientInvoices = invoices.filter((invoice) => invoice.patientId === patient.id);
-
-        // Total: services (existing logic, same currency as services) + assignment fees in UGX
-        const servicesTotal = patientServices.reduce((sum, service) => sum + (service.price || 0), 0);
-        const totalAmount = servicesTotal + assignmentFeeUgx;
+        const totalAmount = patientInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
         const paidAmount = patientInvoices
           .filter((inv) => inv.status === 'paid')
-          .reduce((sum, inv) => sum + inv.amount, 0);
+          .reduce((sum, inv) => sum + Number(inv.amount), 0);
         const pendingAmount = totalAmount - paidAmount;
+        const serviceIds = (patient as any).serviceIds || [];
+        const patientServices = services.filter((s) => serviceIds.includes(s.id));
+        const assignmentFeeUgx = patientInvoices
+          .filter((inv) => (inv.serviceName || inv.description || '').toLowerCase().includes('consultation'))
+          .reduce((sum, inv) => sum + Number(inv.amount), 0);
 
         return {
           patient,
@@ -102,7 +90,7 @@ export default function BillerDashboard() {
     return patientBills.filter((bill) => {
       const matchesSearch =
         bill.patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.patient.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         bill.patient.phone.toLowerCase().includes(searchTerm.toLowerCase());
 
       let matchesStatus = true;
@@ -272,7 +260,7 @@ export default function BillerDashboard() {
             <p className="text-sm text-gray-500 mt-1">
               {searchTerm || statusFilter !== 'all'
                 ? 'Try adjusting your search or filter criteria'
-                : 'Patients with services or specialist/therapist assignments will appear here'}
+                : 'Patients with invoices (consultation or services) will appear here'}
             </p>
           </div>
         ) : (
@@ -280,11 +268,14 @@ export default function BillerDashboard() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                    {' '}
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Patient
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Services
+                    Invoice lines
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Total Amount
@@ -308,78 +299,131 @@ export default function BillerDashboard() {
                   const isOverdue = bill.invoices.some((inv) => inv.status === 'overdue');
                   const isPaid = bill.pendingAmount === 0 && bill.totalAmount > 0;
                   const isPending = bill.pendingAmount > 0 && !isOverdue;
+                  const isExpanded = expandedPatientId === bill.patient.id;
 
                   return (
-                    <tr key={bill.patient.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {bill.patient.name}
+                    <Fragment key={bill.patient.id}>
+                      <tr className="hover:bg-gray-50">
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedPatientId((id) => (id === bill.patient.id ? null : bill.patient.id))
+                            }
+                            className="p-1 rounded hover:bg-gray-100 text-gray-500"
+                            aria-label={isExpanded ? 'Collapse details' : 'Expand invoice details'}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-5 w-5" />
+                            ) : (
+                              <ChevronRight className="h-5 w-5" />
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {bill.patient.name}
+                            </div>
+                            <div className="text-sm text-gray-500">{bill.patient.email}</div>
+                            <div className="text-xs text-gray-400">{bill.patient.phone}</div>
                           </div>
-                          <div className="text-sm text-gray-500">{bill.patient.email}</div>
-                          <div className="text-xs text-gray-400">{bill.patient.phone}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {bill.services.length} {bill.services.length === 1 ? 'service' : 'services'}
-                          {bill.assignmentFeeUgx > 0 && (
-                            <span className="text-xs text-gray-600 block mt-0.5">
-                              + {bill.assignmentFeeUgx.toLocaleString()} UGX consultation
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {bill.services.slice(0, 2).map((s) => s.name).join(', ')}
-                          {bill.services.length > 2 && ` +${bill.services.length - 2} more`}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {bill.totalAmount.toLocaleString()} UGX
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-green-600 font-medium">
-                          {bill.paidAmount.toLocaleString()} UGX
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-yellow-600 font-medium">
-                          {bill.pendingAmount.toLocaleString()} UGX
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            isOverdue
-                              ? 'bg-red-100 text-red-800'
-                              : isPaid
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {isOverdue ? 'Overdue' : isPaid ? 'Paid' : 'Pending'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link
-                          to={`/patients/${bill.patient.id}`}
-                          className="text-primary-600 hover:text-primary-900 mr-4"
-                        >
-                          <Eye className="h-5 w-5 inline" />
-                        </Link>
-                        <Link
-                          to="/billing"
-                          className="text-primary-600 hover:text-primary-900"
-                          onClick={() => {
-                            // Could add state to filter billing page by patient
-                          }}
-                        >
-                          <CreditCard className="h-5 w-5 inline" />
-                        </Link>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {bill.invoices.length} {bill.invoices.length === 1 ? 'line' : 'lines'}
+                            {bill.assignmentFeeUgx > 0 && (
+                              <span className="text-xs text-gray-600 block mt-0.5">
+                                (incl. {bill.assignmentFeeUgx.toLocaleString()} UGX consultation)
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {bill.totalAmount.toLocaleString()} UGX
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-green-600 font-medium">
+                            {bill.paidAmount.toLocaleString()} UGX
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-yellow-600 font-medium">
+                            {bill.pendingAmount.toLocaleString()} UGX
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              isOverdue
+                                ? 'bg-red-100 text-red-800'
+                                : isPaid
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
+                            {isOverdue ? 'Overdue' : isPaid ? 'Paid' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <Link
+                            to={`/patients/${bill.patient.id}`}
+                            className="text-primary-600 hover:text-primary-900 mr-4"
+                          >
+                            <Eye className="h-5 w-5 inline" />
+                          </Link>
+                          <Link to="/billing" className="text-primary-600 hover:text-primary-900">
+                            <CreditCard className="h-5 w-5 inline" />
+                          </Link>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${bill.patient.id}-details`} className="bg-gray-50">
+                          <td colSpan={8} className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-700 mb-2">Invoice details</div>
+                            <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                              <thead className="bg-gray-100">
+                                <tr>
+                                  <th className="px-4 py-2 text-left font-medium text-gray-600">Description</th>
+                                  <th className="px-4 py-2 text-right font-medium text-gray-600">Amount (UGX)</th>
+                                  <th className="px-4 py-2 text-left font-medium text-gray-600">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-100">
+                                {bill.invoices.map((inv) => (
+                                  <tr key={inv.id}>
+                                    <td className="px-4 py-2 text-gray-900">{inv.description || inv.serviceName || '—'}</td>
+                                    <td className="px-4 py-2 text-right font-medium">{Number(inv.amount).toLocaleString()}</td>
+                                    <td className="px-4 py-2">
+                                      <span
+                                        className={`inline-flex px-2 py-0.5 rounded text-xs ${
+                                          inv.status === 'paid'
+                                            ? 'bg-green-100 text-green-800'
+                                            : inv.status === 'overdue'
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-yellow-100 text-yellow-800'
+                                        }`}
+                                      >
+                                        {inv.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                              <tfoot className="bg-gray-100 font-semibold">
+                                <tr>
+                                  <td className="px-4 py-2 text-gray-700">Total</td>
+                                  <td className="px-4 py-2 text-right">{bill.totalAmount.toLocaleString()} UGX</td>
+                                  <td />
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

@@ -513,3 +513,20 @@ import './Component.css';
 - ✅ Data validation and sanitization
 
 Remember: Always prioritize user experience, accessibility, and healthcare compliance in the frontend. Follow these patterns consistently to ensure code quality and maintainability.
+
+---
+
+## 🚨 Rules to prevent runtime/API and build failures
+
+### Optional fields from API / types
+
+- When the **backend** makes a field optional (e.g. `email` on User or Patient), update **frontend** in one pass so build and runtime stay healthy:
+  - **Types:** In `types/index.ts` (and any API response types), set the field to optional: `email?: string`.
+  - **Forms and payloads:** Do not require the field in create/update payloads; send it only when the user entered a value (e.g. `email: formData.email?.trim() || undefined`).
+  - **Display and search:** Use optional chaining so missing values do not throw: e.g. `user.email?.toLowerCase()`, `patient.email ?? '—'`, or conditional render `{user.email && <span>{user.email}</span>}`.
+  - **Modal/component props:** If a parent passes data that can omit the field, type the callback/payload with the field optional (e.g. `email?: string`) so `string | undefined` is assignable.
+- Run **`npm run build`** after such changes; fix any TS errors (e.g. "possibly undefined", "not assignable to type 'string'").
+
+### Avoid mixing `??` and `||` without parentheses
+
+- TypeScript can error (TS5076) when `??` and `||` are mixed in the same expression. Add parentheses so the intended grouping is explicit: e.g. `(a ?? b) || 'fallback'` or `a ?? (b || 'fallback')`.

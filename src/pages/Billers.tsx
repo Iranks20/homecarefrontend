@@ -40,7 +40,7 @@ export default function Billers() {
     return billersList.filter((biller) => {
       const matchesSearch =
         biller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        biller.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        biller.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (biller.phone && biller.phone.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesStatus = 
@@ -59,13 +59,12 @@ export default function Billers() {
   );
   const deleteBillerMutation = useApiMutation((id: string) => userService.deleteUser(id));
 
-  const handleAddBiller = async (billerData: { name: string; email: string; password?: string; phone?: string; department?: string; isActive?: boolean; role: User['role'] }) => {
+  const handleAddBiller = async (billerData: { username?: string; name: string; email?: string; password?: string; phone?: string; department?: string; isActive?: boolean; role: User['role'] }) => {
     try {
-      // Ensure role is set to biller
       const dataWithRole: Parameters<typeof userService.createUser>[0] = {
         ...billerData,
         role: 'biller' as const,
-        username: (billerData.email?.trim().split('@')[0] ?? billerData.name.replace(/\s+/g, '').toLowerCase()) || 'biller',
+        username: (billerData.username ?? billerData.email?.trim().split('@')[0] ?? billerData.name.replace(/\s+/g, '').toLowerCase()) || 'biller',
       };
       await createBillerMutation.mutate(dataWithRole);
       toast.success(`Biller ${billerData.name} has been added successfully`);

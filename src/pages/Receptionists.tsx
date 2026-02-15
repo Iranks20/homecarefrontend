@@ -33,7 +33,7 @@ export default function Receptionists() {
     return receptionistsList.filter((receptionist) => {
       const matchesSearch =
         receptionist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        receptionist.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        receptionist.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (receptionist.phone && receptionist.phone.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesStatus =
@@ -55,7 +55,7 @@ export default function Receptionists() {
   const handleAddReceptionist = async (data: {
     username: string;
     name: string;
-    email: string;
+    email?: string;
     password?: string;
     phone?: string;
     department?: string;

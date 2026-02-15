@@ -49,7 +49,7 @@ export default function Doctors() {
       const matchesSearch =
         !search ||
         doctor.name.toLowerCase().includes(search) ||
-        doctor.email.toLowerCase().includes(search) ||
+        doctor.email?.toLowerCase().includes(search) ||
         (doctor as any).doctorSpecialization?.toLowerCase().includes(search) ||
         doctor.licenseNumber?.toLowerCase().includes(search);
 

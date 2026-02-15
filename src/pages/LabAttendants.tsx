@@ -33,7 +33,7 @@ export default function LabAttendants() {
     return labAttendantsList.filter((attendant) => {
       const matchesSearch =
         attendant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        attendant.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        attendant.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (attendant.phone && attendant.phone.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesStatus =
@@ -55,7 +55,7 @@ export default function LabAttendants() {
   const handleAddLabAttendant = async (data: {
     username: string;
     name: string;
-    email: string;
+    email?: string;
     password?: string;
     phone?: string;
     department?: string;

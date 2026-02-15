@@ -98,7 +98,7 @@ export default function Settings() {
       setProfileForm({
         firstName: firstName ?? '',
         lastName: rest.join(' '),
-        email: user.email,
+        email: user.email ?? '',
         phone: user.phone ?? '',
         department: user.department ?? '',
       });

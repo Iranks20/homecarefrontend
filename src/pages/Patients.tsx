@@ -71,6 +71,13 @@ export default function Patients() {
     return map;
   }, [nurses]);
 
+  const getPatientServices = (patient: Patient): Service[] => {
+    if (!(patient as any).serviceIds || (patient as any).serviceIds.length === 0) return [];
+    return (patient as any).serviceIds
+      .map((serviceId: string) => serviceMap.get(serviceId))
+      .filter((service: Service | undefined): service is Service => service !== undefined);
+  };
+
   const loadTherapists = async () => {
     try {
       const { users } = await userService.getMedicalStaff({
@@ -257,13 +264,6 @@ export default function Patients() {
       return matchesSearch && matchesStatus;
   });
   }, [patientsList, searchTerm, statusFilter, specialistMap, therapistMap, serviceMap]);
-
-  const getPatientServices = (patient: Patient): Service[] => {
-    if (!patient.serviceIds || patient.serviceIds.length === 0) return [];
-    return patient.serviceIds
-      .map((serviceId) => serviceMap.get(serviceId))
-      .filter((service): service is Service => service !== undefined);
-  };
 
   const handleAddPatient = async (values: PatientFormValues) => {
     try {

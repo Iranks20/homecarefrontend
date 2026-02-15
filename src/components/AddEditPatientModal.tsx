@@ -522,12 +522,12 @@ export default function AddEditPatientModal({
           {/* Assignment & Care Details */}
           <section>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Assignment & Care Details</h3>
-            <p className="text-sm text-gray-500 mb-4">Assign patient to one or more care providers (Specialist and/or Therapist)</p>
+            <p className="text-sm text-gray-500 mb-4">Optionally assign patient to a specialist and/or therapist. Consultation fee invoices are created automatically when assigned.</p>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Assigned Specialist
+                  Assigned Specialist <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <select
                   name="assignedSpecialistId"
@@ -549,7 +549,7 @@ export default function AddEditPatientModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Assigned Therapist
+                  Assigned Therapist <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <select
                   name="assignedTherapistId"
