@@ -282,7 +282,7 @@ export default function AddEditAppointmentModal({
               <option value="">Select a service</option>
               {services.map((service) => (
                 <option key={service.id} value={service.id}>
-                  {service.name} - ${service.price.toFixed(2)} ({Math.round(service.duration / 60)}h)
+                  {service.name} - ${(service.price ?? 0).toFixed(2)} ({Math.round(service.duration / 60)}h)
                 </option>
               ))}
             </select>

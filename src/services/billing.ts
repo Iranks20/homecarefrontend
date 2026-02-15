@@ -89,7 +89,7 @@ export class BillingService {
   async archiveInvoice(id: string): Promise<Invoice> {
     const response = await apiService.patch<{ data?: InvoiceApi } | InvoiceApi>(API_ENDPOINTS.BILLING.ARCHIVE_INVOICE(id));
     const raw = response as { data?: InvoiceApi };
-    return normalizeInvoice(raw.data ?? (response as InvoiceApi));
+    return normalizeInvoice(raw.data ?? (response as unknown as InvoiceApi));
   }
 
   async getBillingSummary(params?: { period?: string; dateFrom?: string; dateTo?: string }): Promise<BillingSummary> {
@@ -97,7 +97,7 @@ export class BillingService {
       params,
     });
     const raw = response as { data?: BillingSummary };
-    return raw.data ?? (response as BillingSummary);
+    return raw.data ?? (response as unknown as BillingSummary);
   }
 
   async getInvoice(id: string): Promise<Invoice> {

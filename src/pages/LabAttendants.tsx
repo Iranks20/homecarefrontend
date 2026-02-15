@@ -52,9 +52,22 @@ export default function LabAttendants() {
   );
   const deleteLabAttendantMutation = useApiMutation((id: string) => userService.deleteUser(id));
 
-  const handleAddLabAttendant = async (data: Parameters<typeof userService.createUser>[0]) => {
+  const handleAddLabAttendant = async (data: {
+    username: string;
+    name: string;
+    email: string;
+    password?: string;
+    phone?: string;
+    department?: string;
+    isActive?: boolean;
+    role?: User['role'];
+  }) => {
     try {
-      const dataWithRole = { ...data, role: 'lab_attendant' as const };
+      const dataWithRole: Parameters<typeof userService.createUser>[0] = {
+        ...data,
+        username: (data.username ?? data.email?.trim().split('@')[0] ?? data.name.replace(/\s+/g, '').toLowerCase()) || 'lab_attendant',
+        role: 'lab_attendant' as const,
+      };
       await createLabAttendantMutation.mutate(dataWithRole);
       toast.success(`Lab attendant ${data.name} has been added successfully`);
       addNotification({

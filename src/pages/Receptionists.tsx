@@ -53,16 +53,21 @@ export default function Receptionists() {
   const deleteReceptionistMutation = useApiMutation((id: string) => userService.deleteUser(id));
 
   const handleAddReceptionist = async (data: {
+    username: string;
     name: string;
     email: string;
     password?: string;
     phone?: string;
     department?: string;
     isActive?: boolean;
-    role: User['role'];
+    role?: User['role'];
   }) => {
     try {
-      const dataWithRole: Parameters<typeof userService.createUser>[0] = { ...data, role: 'receptionist' as const };
+      const dataWithRole: Parameters<typeof userService.createUser>[0] = {
+        ...data,
+        role: 'receptionist' as const,
+        username: (data.username ?? data.email?.trim().split('@')[0] ?? data.name.replace(/\s+/g, '').toLowerCase()) || 'receptionist',
+      };
       await createReceptionistMutation.mutate(dataWithRole);
       toast.success(`Receptionist ${data.name} has been added successfully`);
       addNotification({

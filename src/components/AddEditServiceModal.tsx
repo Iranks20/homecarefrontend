@@ -74,7 +74,7 @@ export default function AddEditServiceModal({
         name: service.name,
         description: service.description,
         category: service.category,
-        price: service.price,
+        price: service.price ?? 0,
         duration: service.duration,
         features: service.features,
         image: service.image || '',

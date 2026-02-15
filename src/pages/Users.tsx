@@ -82,6 +82,7 @@ export default function Users() {
   }, [users, searchTerm, roleFilter, statusFilter]);
 
   const handleCreateUser = async (input: {
+    username?: string;
     name: string;
     email: string;
     password?: string;
@@ -96,6 +97,7 @@ export default function Users() {
       throw new Error('Role is required');
     }
     const payload: CreateUserPayload = {
+      username: input.username ?? input.email?.trim().split('@')[0] ?? input.name.replace(/\s+/g, '').toLowerCase() ?? 'user',
       name: input.name,
       email: input.email,
       password: input.password,

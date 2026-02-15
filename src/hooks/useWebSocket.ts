@@ -126,7 +126,9 @@ export function useNotificationsWebSocket() {
   }, []);
 
   const { isConnected, sendMessage, connect, disconnect } = useWebSocket({
-    url: import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws/notifications',
+    url:
+      import.meta.env.VITE_WS_URL ||
+      (import.meta.env.MODE === 'production' ? 'ws://3.89.141.154:3007/ws/notifications' : 'ws://localhost:3001/ws/notifications'),
     onMessage: handleMessage,
   });
 
@@ -156,7 +158,9 @@ export function useRealtimeUpdates(entityType: string, entityId?: string) {
   }, [entityType, entityId]);
 
   const { isConnected, sendMessage } = useWebSocket({
-    url: import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws/updates',
+    url:
+      import.meta.env.VITE_WS_URL ||
+      (import.meta.env.MODE === 'production' ? 'ws://3.89.141.154:3007/ws/updates' : 'ws://localhost:3001/ws/updates'),
     onMessage: handleMessage,
   });
 

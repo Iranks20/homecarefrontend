@@ -1,9 +1,17 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3007/api';
+const DEFAULT_API_BASE =
+  import.meta.env.MODE === 'production'
+    ? 'http://3.89.141.154:3007/api'
+    : 'http://localhost:3007/api';
+const BASE_URL = import.meta.env.VITE_API_URL || DEFAULT_API_BASE;
+const DEFAULT_ORIGIN =
+  import.meta.env.MODE === 'production'
+    ? 'http://3.89.141.154:3007'
+    : 'http://localhost:3007';
 
 export const API_CONFIG = {
   BASE_URL,
   /** Origin for assets (avatars, uploads). Same host as API, no /api path. */
-  API_ORIGIN: BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:3007',
+  API_ORIGIN: BASE_URL.replace(/\/api\/?$/, '') || DEFAULT_ORIGIN,
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,

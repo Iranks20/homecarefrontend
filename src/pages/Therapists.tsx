@@ -58,6 +58,7 @@ export default function Therapists() {
   const handleCreateTherapist = async (payload: any) => {
     try {
       const createPayload: CreateTherapistData = {
+        username: payload.username ?? payload.email?.trim().split('@')[0] ?? payload.name?.replace(/\s+/g, '').toLowerCase() ?? 'therapist',
         name: payload.name,
         email: payload.email,
         password: payload.password,

@@ -62,7 +62,11 @@ export default function Billers() {
   const handleAddBiller = async (billerData: { name: string; email: string; password?: string; phone?: string; department?: string; isActive?: boolean; role: User['role'] }) => {
     try {
       // Ensure role is set to biller
-      const dataWithRole: Parameters<typeof userService.createUser>[0] = { ...billerData, role: 'biller' as const };
+      const dataWithRole: Parameters<typeof userService.createUser>[0] = {
+        ...billerData,
+        role: 'biller' as const,
+        username: (billerData.email?.trim().split('@')[0] ?? billerData.name.replace(/\s+/g, '').toLowerCase()) || 'biller',
+      };
       await createBillerMutation.mutate(dataWithRole);
       toast.success(`Biller ${billerData.name} has been added successfully`);
       addNotification({

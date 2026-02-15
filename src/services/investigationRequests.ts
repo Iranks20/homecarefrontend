@@ -32,8 +32,17 @@ export const investigationRequestService = {
   create(payload: CreateInvestigationRequestPayload): Promise<{ success: boolean; data: InvestigationRequest }> {
     return apiService.post(API_ENDPOINTS.INVESTIGATION_REQUESTS.BASE, payload);
   },
-  list(params?: InvestigationRequestFilters): Promise<{ success: boolean; requests: InvestigationRequest[]; pagination: InvestigationRequestsResponse['pagination'] }> {
-    return apiService.get(API_ENDPOINTS.INVESTIGATION_REQUESTS.BASE, { params });
+  async list(params?: InvestigationRequestFilters): Promise<{ success: boolean; requests: InvestigationRequest[]; pagination: InvestigationRequestsResponse['pagination'] }> {
+    const response = await apiService.get<{ requests: InvestigationRequest[]; pagination: InvestigationRequestsResponse['pagination'] }>(
+      API_ENDPOINTS.INVESTIGATION_REQUESTS.BASE,
+      { params }
+    );
+    const data = response.data ?? (response as unknown as { requests?: InvestigationRequest[]; pagination?: InvestigationRequestsResponse['pagination'] });
+    return {
+      success: response.success,
+      requests: data.requests ?? [],
+      pagination: data.pagination ?? { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
   },
   getById(id: string): Promise<{ success: boolean; data: InvestigationRequest }> {
     return apiService.get(API_ENDPOINTS.INVESTIGATION_REQUESTS.BY_ID(id));

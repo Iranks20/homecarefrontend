@@ -256,7 +256,7 @@ export default function BookAppointment() {
                     <h3 className="font-medium text-gray-900">{service.name}</h3>
                     <p className="text-sm text-gray-600 mt-1">{service.description}</p>
                     <div className="flex items-center mt-2 space-x-4 text-sm text-gray-500">
-                      <span>${service.price.toFixed(2)}</span>
+                      <span>${(service.price ?? 0).toFixed(2)}</span>
                       <span>{service.duration} min</span>
                     </div>
                   </div>
@@ -447,8 +447,8 @@ export default function BookAppointment() {
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Payment</h3>
                   <div className="text-sm text-gray-600 space-y-1">
-                    <p><strong>Service Fee:</strong> ${getSelectedServiceDetails()?.price.toFixed(2)}</p>
-                    <p><strong>Total:</strong> ${getSelectedServiceDetails()?.price.toFixed(2)}</p>
+                    <p><strong>Service Fee:</strong> ${(getSelectedServiceDetails()?.price ?? 0).toFixed(2)}</p>
+                    <p><strong>Total:</strong> ${(getSelectedServiceDetails()?.price ?? 0).toFixed(2)}</p>
                   </div>
                 </div>
               </div>

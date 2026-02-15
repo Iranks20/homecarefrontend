@@ -35,7 +35,7 @@ export default function ConsultationRates() {
 
   const handleSaveFee = async (user: User, value: string) => {
     const num = value.trim() === '' ? null : Math.max(0, Math.floor(Number(value)));
-    if (value.trim() !== '' && (Number.isNaN(num) || num < 0)) {
+    if (value.trim() !== '' && (num == null || Number.isNaN(num) || num < 0)) {
       toast.error('Please enter a valid number (0 or greater)');
       return;
     }
