@@ -164,7 +164,7 @@ export default function Layout({ children, user }: LayoutProps) {
               <X className="h-6 w-6" />
             </button>
           </div>
-          <nav className="flex-1 px-4 py-4 space-y-1">
+          <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
@@ -192,7 +192,7 @@ export default function Layout({ children, user }: LayoutProps) {
             </div>
             <span className="ml-2 text-lg font-semibold text-gray-900">Physiotherapy Center</span>
           </div>
-          <nav className="flex-1 px-4 py-4 space-y-1">
+          <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
