@@ -149,8 +149,8 @@ export default function Layout({ children, user }: LayoutProps) {
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
-          <div className="flex h-16 items-center justify-between px-4">
+        <div className="fixed inset-y-0 left-0 flex h-full w-64 flex-col bg-white min-h-0">
+          <div className="flex h-16 shrink-0 items-center justify-between px-4">
             <div className="flex items-center">
               <div className="h-8 w-8 bg-primary-500 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">TH</span>
@@ -164,7 +164,7 @@ export default function Layout({ children, user }: LayoutProps) {
               <X className="h-6 w-6" />
             </button>
           </div>
-          <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll">
+          <nav className="min-h-0 flex-1 px-4 py-4 space-y-1 sidebar-scroll">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
@@ -184,15 +184,15 @@ export default function Layout({ children, user }: LayoutProps) {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
-          <div className="flex h-16 items-center px-4">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col lg:h-full">
+        <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
+          <div className="flex h-16 shrink-0 items-center px-4">
             <div className="h-8 w-8 bg-primary-500 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">TH</span>
             </div>
             <span className="ml-2 text-lg font-semibold text-gray-900">Physiotherapy Center</span>
           </div>
-          <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll">
+          <nav className="min-h-0 flex-1 px-4 py-4 space-y-1 sidebar-scroll">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
