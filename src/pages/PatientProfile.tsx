@@ -229,11 +229,11 @@ export default function PatientProfile() {
     );
   }
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!patient || !profileData) return;
     setIsPdfPreparing(true);
     try {
-      downloadPatientProfilePdf({
+      await downloadPatientProfilePdf({
         patient,
         medicalHistory: profileData.medicalHistory,
         progress: profileData.progress,
@@ -264,11 +264,11 @@ export default function PatientProfile() {
     }
   };
 
-  const handlePrintPdf = () => {
+  const handlePrintPdf = async () => {
     if (!patient || !profileData) return;
     setIsPdfPreparing(true);
     try {
-      const doc = generatePatientProfilePdf({
+      const doc = await generatePatientProfilePdf({
         patient,
         medicalHistory: profileData.medicalHistory,
         progress: profileData.progress,

@@ -1,14 +1,19 @@
 import { jsPDF } from 'jspdf';
 import type { Patient, MedicalRecord, ProgressRecord, PatientCase, HealthRecordUpdate } from '../types';
+import { getLogoBase64 } from './logo';
 
 const MARGIN = 20;
 const PAGE_WIDTH = 210;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-const LINE_HEIGHT = 6;
-const SECTION_GAP = 10;
-const TITLE_SIZE = 16;
-const SECTION_SIZE = 11;
-const BODY_SIZE = 9;
+const LINE_HEIGHT = 7;
+const SECTION_GAP = 12;
+const TITLE_SIZE = 18;
+const SECTION_SIZE = 12;
+const BODY_SIZE = 10;
+const HEADER_COLOR = [30, 64, 175]; // Professional blue
+const TEXT_COLOR = [31, 41, 55]; // Dark gray
+const SECONDARY_COLOR = [107, 114, 128]; // Medium gray
+const ACCENT_COLOR = [59, 130, 246]; // Light blue
 
 interface InvoiceLike {
   id: string;
@@ -31,22 +36,38 @@ interface PatientProfilePdfData {
 }
 
 function addSectionTitle(doc: jsPDF, title: string, y: number): number {
+  // Add subtle background bar
+  doc.setFillColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2]);
+  doc.rect(MARGIN, y - 4, CONTENT_WIDTH, 4, 'F');
+  
   doc.setFontSize(SECTION_SIZE);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(40, 40, 40);
-  doc.text(title, MARGIN, y);
+  doc.setTextColor(255, 255, 255);
+  doc.text(title, MARGIN + 2, y - 1);
+  
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(BODY_SIZE);
-  doc.setTextColor(60, 60, 60);
-  return y + LINE_HEIGHT + 2;
+  doc.setTextColor(TEXT_COLOR[0], TEXT_COLOR[1], TEXT_COLOR[2]);
+  return y + LINE_HEIGHT + 4;
 }
 
 function addLabelValue(doc: jsPDF, label: string, value: string | undefined | null, y: number): number {
   if (value === undefined || value === null || value === '') return y;
-  const text = `${label}: ${value}`;
-  const lines = doc.splitTextToSize(text, CONTENT_WIDTH);
-  doc.text(lines, MARGIN, y);
-  return y + lines.length * LINE_HEIGHT;
+  
+  // Label in bold, secondary color
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(BODY_SIZE);
+  doc.setTextColor(SECONDARY_COLOR[0], SECONDARY_COLOR[1], SECONDARY_COLOR[2]);
+  doc.text(`${label}:`, MARGIN, y);
+  
+  // Value in normal, primary color
+  const labelWidth = doc.getTextWidth(`${label}: `);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(TEXT_COLOR[0], TEXT_COLOR[1], TEXT_COLOR[2]);
+  const valueLines = doc.splitTextToSize(value, CONTENT_WIDTH - labelWidth);
+  doc.text(valueLines, MARGIN + labelWidth, y);
+  
+  return y + valueLines.length * LINE_HEIGHT + 1;
 }
 
 function addPageIfNeeded(doc: jsPDF, y: number, needed: number = 40): number {
@@ -61,7 +82,7 @@ function addPageIfNeeded(doc: jsPDF, y: number, needed: number = 40): number {
  * Generate a professional PDF document with all patient details.
  * Suitable for healthcare systems: clear sections, readable layout, confidential footer.
  */
-export function generatePatientProfilePdf(data: PatientProfilePdfData): jsPDF {
+export async function generatePatientProfilePdf(data: PatientProfilePdfData): Promise<jsPDF> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const {
     patient,
@@ -73,20 +94,53 @@ export function generatePatientProfilePdf(data: PatientProfilePdfData): jsPDF {
     latestVitals,
   } = data;
 
-  let y = MARGIN + 5;
+  let y = MARGIN + 8;
 
-  // Header
+  // Professional header with logo and title
+  try {
+    const logoBase64 = await getLogoBase64();
+    if (logoBase64) {
+      const logoWidth = 45;
+      const logoHeight = 14;
+      doc.addImage(logoBase64, 'PNG', MARGIN, y, logoWidth, logoHeight);
+      
+      // Clinic name next to logo
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2]);
+      doc.text('Teamwork Physio International', MARGIN + logoWidth + 6, y + 4);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(SECONDARY_COLOR[0], SECONDARY_COLOR[1], SECONDARY_COLOR[2]);
+      doc.text('Healthcare & Rehabilitation Services', MARGIN + logoWidth + 6, y + 9);
+      
+      y += logoHeight + 12;
+    }
+  } catch (error) {
+    console.warn('Could not load logo for PDF:', error);
+  }
+
+  // Document title with underline
   doc.setFontSize(TITLE_SIZE);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 64, 175);
-  doc.text('Patient Summary', MARGIN, y);
-  y += LINE_HEIGHT;
+  doc.setTextColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2]);
+  doc.text('PATIENT SUMMARY REPORT', MARGIN, y);
+  
+  // Underline
+  doc.setDrawColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2]);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, y + 2, MARGIN + 80, y + 2);
+  
+  y += LINE_HEIGHT + 4;
 
-  doc.setFontSize(9);
+  // Metadata line
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Generated ${new Date().toLocaleString()} • Confidential`, MARGIN, y);
-  y += LINE_HEIGHT + SECTION_GAP;
+  doc.setTextColor(SECONDARY_COLOR[0], SECONDARY_COLOR[1], SECONDARY_COLOR[2]);
+  const genDate = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  doc.text(`Generated: ${genDate} | Patient ID: ${patient.id} | CONFIDENTIAL`, MARGIN, y);
+  y += LINE_HEIGHT + SECTION_GAP + 2;
 
   // Demographics
   y = addSectionTitle(doc, 'Demographics', y);
@@ -230,12 +284,39 @@ export function generatePatientProfilePdf(data: PatientProfilePdfData): jsPDF {
     y += SECTION_GAP;
   }
 
-  // Footer on last page
-  y = addPageIfNeeded(doc, y, 20);
-  doc.setFontSize(8);
-  doc.setTextColor(120, 120, 120);
-  doc.text('This document is confidential and intended for authorized healthcare use only.', MARGIN, 285);
-  doc.text(`Patient ID: ${patient.id} • Document generated ${new Date().toISOString()}`, MARGIN, 290);
+  // Professional footer on last page
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    
+    // Footer line
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, 285, PAGE_WIDTH - MARGIN, 285);
+    
+    // Footer text
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(SECONDARY_COLOR[0], SECONDARY_COLOR[1], SECONDARY_COLOR[2]);
+    
+    const footerLeft = `Teamwork Physio International | Confidential Medical Document`;
+    const footerRight = `Page ${i} of ${pageCount}`;
+    
+    doc.text(footerLeft, MARGIN, 288);
+    doc.text(footerRight, PAGE_WIDTH - MARGIN - doc.getTextWidth(footerRight), 288);
+    
+    // Confidential watermark on last page
+    if (i === pageCount) {
+      doc.setFontSize(8);
+      // Use very light gray color for watermark effect (opacity achieved through color)
+      doc.setTextColor(240, 240, 240);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CONFIDENTIAL', PAGE_WIDTH / 2, PAGE_WIDTH / 2, { 
+        align: 'center',
+        angle: 45
+      });
+    }
+  }
 
   return doc;
 }
@@ -243,8 +324,8 @@ export function generatePatientProfilePdf(data: PatientProfilePdfData): jsPDF {
 /**
  * Generate and download the patient profile PDF.
  */
-export function downloadPatientProfilePdf(data: PatientProfilePdfData): void {
-  const doc = generatePatientProfilePdf(data);
+export async function downloadPatientProfilePdf(data: PatientProfilePdfData): Promise<void> {
+  const doc = await generatePatientProfilePdf(data);
   const safeName = data.patient.name.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
   doc.save(`Patient_Summary_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }

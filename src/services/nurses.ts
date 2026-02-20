@@ -14,7 +14,7 @@ export interface NursePayload {
   email: string;
   password: string;
   phone: string;
-  licenseNumber: string;
+  licenseNumber?: string | null;
   specialization: string;
   experience: number;
   certifications?: string[];
@@ -60,6 +60,10 @@ function serializeNurse(payload: Partial<NursePayload>): Record<string, unknown>
   }
   if (payload.hireDate) {
     data.hireDate = new Date(payload.hireDate).toISOString();
+  }
+  // Convert empty licenseNumber to null
+  if (payload.licenseNumber !== undefined) {
+    data.licenseNumber = payload.licenseNumber && payload.licenseNumber.trim() !== '' ? payload.licenseNumber.trim() : null;
   }
   return data;
 }

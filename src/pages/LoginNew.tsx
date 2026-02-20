@@ -7,6 +7,7 @@ import FormField, { InputField } from '../components/FormField';
 import { validateForm, commonValidationRules } from '../utils/validation';
 import { handleApiError } from '../utils/errorHandler';
 import { ApiError } from '../services/api';
+import { getLogoUrl } from '../utils/logo';
 
 export default function Login() {
   const { login, isLoading } = useAuth();
@@ -77,9 +78,18 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">
-            Physiotherapy Center
-          </h2>
+          <div className="flex justify-center mb-8">
+            <img 
+              src={getLogoUrl()} 
+              alt="Teamwork Physio International" 
+              className="h-24 sm:h-28 md:h-32 lg:h-36 w-auto object-contain"
+              onError={(e) => {
+                // Fallback to placeholder if logo fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
+          </div>
           <p className="mt-2 text-sm text-gray-600">
             Sign in to your account
           </p>

@@ -301,7 +301,7 @@ export default function Nurses() {
                       <div className="flex items-center">
                         <Award className="mr-2 h-4 w-4 text-gray-400" />
                         <div className="text-sm text-gray-900">
-                          {nurse.licenseNumber}
+                          {nurse.licenseNumber || <span className="text-gray-400 italic">Not provided</span>}
                         </div>
                       </div>
                     </td>

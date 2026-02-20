@@ -10,7 +10,7 @@ export interface NurseFormValues {
   email: string;
   password: string;
   phone: string;
-  licenseNumber: string;
+  licenseNumber?: string;
   specialization: string;
   experience: number;
   certifications: string[];
@@ -236,7 +236,12 @@ export default function AddEditNurseModal({
     }
 
     try {
-      await onSave(formData);
+      // Convert empty licenseNumber to undefined for optional field
+      const submitData = {
+        ...formData,
+        licenseNumber: formData.licenseNumber && formData.licenseNumber.trim() !== '' ? formData.licenseNumber.trim() : undefined,
+      };
+      await onSave(submitData);
       onClose();
     } catch (err: any) {
       setError(err?.message ?? 'Unable to save nurse. Please try again.');
@@ -378,14 +383,13 @@ export default function AddEditNurseModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  License number<span className="text-red-500">*</span>
+                  License number <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
                   name="licenseNumber"
-                  value={formData.licenseNumber}
+                  value={formData.licenseNumber || ''}
                   onChange={handleInputChange}
-                  required
                   className="input-field mt-1"
                   placeholder="RN-001234"
                 />

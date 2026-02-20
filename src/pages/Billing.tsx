@@ -26,6 +26,7 @@ import servicesService from '../services/services';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { getLogoHtml } from '../utils/logo';
 
 const formatUgx = (n: number) => `${Number(n).toLocaleString()} UGX`;
 
@@ -242,121 +243,349 @@ export default function Billing() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Invoice ${invoice.id}</title>
+          <title>Invoice ${invoice.id} - Teamwork Physio</title>
+          <meta charset="UTF-8">
           <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
             body {
-              font-family: Arial, sans-serif;
-              max-width: 800px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+              font-size: 14px;
+              line-height: 1.6;
+              color: #1a1a1a;
+              background: #ffffff;
+              max-width: 900px;
               margin: 0 auto;
-              padding: 20px;
+              padding: 40px 30px;
+            }
+            .watermark {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-45deg);
+              font-size: 120px;
+              color: rgba(0, 0, 0, 0.03);
+              font-weight: bold;
+              z-index: 0;
+              pointer-events: none;
+              white-space: nowrap;
+            }
+            .content {
+              position: relative;
+              z-index: 1;
             }
             .header {
-              border-bottom: 2px solid #333;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
+              border-bottom: 3px solid #1e40af;
+              padding-bottom: 24px;
+              margin-bottom: 32px;
+              display: flex;
+              flex-direction: column;
+              gap: 20px;
             }
-            .header h1 {
-              margin: 0;
-              color: #333;
+            .header-top {
+              display: flex;
+              align-items: flex-start;
+              justify-content: space-between;
+              width: 100%;
+              flex-wrap: wrap;
+              gap: 20px;
+            }
+            .header-left {
+              flex: 1;
+              min-width: 200px;
+            }
+            .header-logo {
+              max-height: 70px;
+              width: auto;
+              margin-bottom: 12px;
+            }
+            .clinic-info {
+              color: #4b5563;
+              font-size: 13px;
+              line-height: 1.8;
+            }
+            .clinic-info strong {
+              color: #1e40af;
+              font-size: 16px;
+              display: block;
+              margin-bottom: 4px;
+            }
+            .header-right {
+              text-align: right;
+              min-width: 200px;
+            }
+            .document-type {
+              font-size: 32px;
+              font-weight: 700;
+              color: #1e40af;
+              letter-spacing: 1px;
+              margin-bottom: 8px;
+            }
+            .invoice-number {
+              font-size: 14px;
+              color: #6b7280;
+              font-weight: 500;
             }
             .invoice-info {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 30px;
-            }
-            .info-section {
-              flex: 1;
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 32px;
+              margin-bottom: 36px;
+              padding: 24px;
+              background: #f9fafb;
+              border-radius: 8px;
+              border-left: 4px solid #1e40af;
             }
             .info-section h3 {
-              margin-top: 0;
-              color: #666;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              color: #6b7280;
+              margin-bottom: 12px;
+              font-weight: 600;
             }
             .info-section p {
-              margin: 5px 0;
+              margin: 6px 0;
+              color: #1a1a1a;
+              font-size: 14px;
             }
+            .info-section strong {
+              font-size: 16px;
+              color: #111827;
+              font-weight: 600;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 6px 14px;
+              border-radius: 6px;
+              font-weight: 600;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .status-paid { background-color: #d1fae5; color: #065f46; }
+            .status-pending { background-color: #fef3c7; color: #92400e; }
+            .status-overdue { background-color: #fee2e2; color: #991b1b; }
             table {
               width: 100%;
-              border-collapse: collapse;
-              margin: 20px 0;
+              border-collapse: separate;
+              border-spacing: 0;
+              margin: 24px 0;
+              background: #ffffff;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }
-            th, td {
-              padding: 12px;
-              text-align: left;
-              border-bottom: 1px solid #ddd;
+            thead {
+              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+              color: #ffffff;
             }
             th {
-              background-color: #f5f5f5;
-              font-weight: bold;
+              padding: 16px;
+              text-align: left;
+              font-weight: 600;
+              font-size: 13px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
             }
-            .total {
+            th:first-child { padding-left: 20px; }
+            th:last-child { padding-right: 20px; text-align: right; }
+            tbody tr {
+              border-bottom: 1px solid #e5e7eb;
+              transition: background-color 0.2s;
+            }
+            tbody tr:last-child {
+              border-bottom: none;
+            }
+            tbody tr:hover {
+              background-color: #f9fafb;
+            }
+            td {
+              padding: 16px;
+              color: #374151;
+              font-size: 14px;
+            }
+            td:first-child { padding-left: 20px; }
+            td:last-child { 
+              padding-right: 20px; 
               text-align: right;
-              margin-top: 20px;
+              font-weight: 600;
+              color: #1e40af;
+            }
+            .total-section {
+              margin-top: 32px;
+              padding: 24px;
+              background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+              border-radius: 8px;
+              border: 2px solid #e5e7eb;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 12px 0;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            .total-row:last-child {
+              border-bottom: none;
+              margin-top: 8px;
+              padding-top: 16px;
+            }
+            .total-label {
+              font-size: 16px;
+              font-weight: 600;
+              color: #374151;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
             }
             .total-amount {
-              font-size: 24px;
-              font-weight: bold;
-              color: #333;
+              font-size: 28px;
+              font-weight: 700;
+              color: #1e40af;
             }
-            .status {
-              display: inline-block;
-              padding: 5px 15px;
-              border-radius: 5px;
-              font-weight: bold;
-              text-transform: uppercase;
+            .footer {
+              margin-top: 48px;
+              padding-top: 24px;
+              border-top: 2px solid #e5e7eb;
+              text-align: center;
+              color: #6b7280;
+              font-size: 12px;
             }
-            .status-paid { background-color: #d4edda; color: #155724; }
-            .status-pending { background-color: #fff3cd; color: #856404; }
-            .status-overdue { background-color: #f8d7da; color: #721c24; }
+            .footer p {
+              margin: 4px 0;
+            }
+            .footer strong {
+              color: #374151;
+            }
+            .no-print {
+              margin-top: 40px;
+              text-align: center;
+            }
+            .print-button {
+              padding: 12px 32px;
+              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+              color: white;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 15px;
+              font-weight: 600;
+              box-shadow: 0 4px 6px rgba(30, 64, 175, 0.3);
+              transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .print-button:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 6px 12px rgba(30, 64, 175, 0.4);
+            }
+            @media (max-width: 768px) {
+              body {
+                padding: 24px 16px;
+              }
+              .header-top {
+                flex-direction: column;
+              }
+              .header-right {
+                text-align: left;
+              }
+              .invoice-info {
+                grid-template-columns: 1fr;
+                gap: 24px;
+              }
+              .document-type {
+                font-size: 24px;
+              }
+            }
             @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
+              body {
+                padding: 20px;
+                max-width: 100%;
+              }
+              .watermark {
+                display: block;
+              }
+              .no-print {
+                display: none;
+              }
+              .total-section {
+                page-break-inside: avoid;
+              }
+              table {
+                page-break-inside: avoid;
+              }
+              @page {
+                margin: 1cm;
+              }
             }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>INVOICE</h1>
-            <p>Invoice #${invoice.id}</p>
-          </div>
-          
-          <div class="invoice-info">
-            <div class="info-section">
-              <h3>Bill To:</h3>
-              <p><strong>${invoice.patientName || 'N/A'}</strong></p>
-              <p>Invoice Date: ${new Date(invoice.date).toLocaleDateString()}</p>
-              <p>Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}</p>
+          <div class="watermark">TEAMWORK PHYSIO</div>
+          <div class="content">
+            <div class="header">
+              <div class="header-top">
+                <div class="header-left">
+                  ${getLogoHtml('header-logo')}
+                  <div class="clinic-info">
+                    <strong>Teamwork Physio International</strong>
+                    Healthcare & Rehabilitation Services
+                  </div>
+                </div>
+                <div class="header-right">
+                  <div class="document-type">INVOICE</div>
+                  <div class="invoice-number">Invoice #${invoice.id}</div>
+                </div>
+              </div>
             </div>
-            <div class="info-section">
-              <h3>Status:</h3>
-              <span class="status status-${invoice.status}">${invoice.status}</span>
+            
+            <div class="invoice-info">
+              <div class="info-section">
+                <h3>Bill To</h3>
+                <p><strong>${invoice.patientName || 'N/A'}</strong></p>
+                <p style="margin-top: 8px; color: #6b7280;">Invoice Date: <strong style="color: #1a1a1a;">${new Date(invoice.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
+                <p style="color: #6b7280;">Due Date: <strong style="color: #1a1a1a;">${new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
+              </div>
+              <div class="info-section">
+                <h3>Payment Status</h3>
+                <span class="status-badge status-${invoice.status}">${invoice.status}</span>
+              </div>
             </div>
-          </div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Service</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${invoice.description || 'N/A'}</td>
-                <td>${invoice.serviceName || 'N/A'}</td>
-                <td>${formatUgx(invoice.amount)}</td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <div class="total">
-            <div class="total-amount">Total: ${formatUgx(invoice.amount)}</div>
-          </div>
-          
-          <div class="no-print" style="margin-top: 30px; text-align: center;">
-            <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-              Print Invoice
-            </button>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Service</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>${invoice.description || 'N/A'}</td>
+                  <td>${invoice.serviceName || 'N/A'}</td>
+                  <td>${formatUgx(invoice.amount)}</td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div class="total-section">
+              <div class="total-row">
+                <span class="total-label">Total Amount</span>
+                <span class="total-amount">${formatUgx(invoice.amount)}</span>
+              </div>
+            </div>
+            
+            <div class="footer">
+              <p><strong>Thank you for choosing Teamwork Physio International</strong></p>
+              <p>This is an official invoice. Please retain for your records.</p>
+              <p style="margin-top: 12px; font-size: 11px; color: #9ca3af;">Document generated on ${new Date().toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+            </div>
+            
+            <div class="no-print">
+              <button onclick="window.print()" class="print-button">Print Invoice</button>
+            </div>
           </div>
         </body>
       </html>

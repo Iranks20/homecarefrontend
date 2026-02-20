@@ -1,5 +1,6 @@
 import { X, Award, Shield, Download } from 'lucide-react';
 import { ExamCertificate } from '../services/exam';
+import { getLogoHtml } from '../utils/logo';
 
 interface CertificatePreviewModalProps {
   isOpen: boolean;
@@ -22,81 +23,247 @@ export default function CertificatePreviewModal({
         <head>
           <title>Certificate - ${certificate.certificateNumber}</title>
           <style>
-            body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background: #f5f3ff; }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+              margin: 0; 
+              padding: 0; 
+              background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
             .certificate {
-              width: 800px;
+              width: 900px;
+              max-width: 95%;
               margin: 40px auto;
-              padding: 40px;
-              background: white;
-              border: 12px solid #e8e4ff;
-              box-shadow: 0 20px 40px rgba(31, 41, 55, 0.15);
+              padding: 60px 50px;
+              background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+              border: 16px solid #1e40af;
+              box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+              position: relative;
+            }
+            .certificate::before {
+              content: '';
+              position: absolute;
+              top: 20px;
+              left: 20px;
+              right: 20px;
+              bottom: 20px;
+              border: 2px solid #3b82f6;
+              pointer-events: none;
+            }
+            .watermark {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-45deg);
+              font-size: 120px;
+              color: rgba(30, 64, 175, 0.05);
+              font-weight: bold;
+              z-index: 0;
+              pointer-events: none;
+              white-space: nowrap;
+            }
+            .certificate-content {
+              position: relative;
+              z-index: 1;
             }
             .header {
               text-align: center;
-              margin-bottom: 24px;
-              color: #312e81;
+              margin-bottom: 40px;
+              position: relative;
+            }
+            .header-logo {
+              max-height: 70px;
+              width: auto;
+              margin: 0 auto 20px;
+              display: block;
+              filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
             }
             .title {
-              font-size: 36px;
-              letter-spacing: 2px;
+              font-size: 42px;
+              font-weight: 700;
+              letter-spacing: 3px;
               text-transform: uppercase;
-              margin-bottom: 8px;
+              margin-bottom: 12px;
+              color: #1e40af;
+              text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             }
             .subtitle {
-              font-size: 18px;
-              color: #4c1d95;
-              letter-spacing: 3px;
+              font-size: 20px;
+              color: #3b82f6;
+              letter-spacing: 4px;
+              font-weight: 500;
             }
             .recipient {
               text-align: center;
-              margin: 32px 0;
+              margin: 48px 0;
+              padding: 32px 0;
+              border-top: 3px solid #e5e7eb;
+              border-bottom: 3px solid #e5e7eb;
+            }
+            .recipient-label {
+              font-size: 16px;
+              color: #6b7280;
+              margin-bottom: 16px;
+              font-style: italic;
             }
             .recipient-name {
-              font-size: 32px;
-              font-weight: bold;
-              color: #1a1a1a;
+              font-size: 36px;
+              font-weight: 700;
+              color: #111827;
+              margin: 16px 0;
+              letter-spacing: 1px;
             }
             .details {
               text-align: center;
-              color: #4b5563;
-              font-size: 18px;
+              color: #374151;
+              font-size: 16px;
+              line-height: 1.8;
+              margin: 32px 0;
+            }
+            .details strong {
+              color: #1e40af;
+              font-weight: 600;
+            }
+            .certificate-number {
+              background: #f0f9ff;
+              padding: 12px 24px;
+              border-radius: 6px;
+              display: inline-block;
+              margin: 20px 0;
+              border: 2px solid #bfdbfe;
             }
             .footer {
               display: flex;
               justify-content: space-between;
-              margin-top: 40px;
-              color: #4338ca;
+              margin-top: 48px;
+              padding-top: 24px;
+              border-top: 2px solid #e5e7eb;
+            }
+            .footer-left {
+              text-align: left;
+              color: #6b7280;
+              font-size: 13px;
             }
             .signature {
-              border-top: 2px solid #c4b5fd;
-              padding-top: 8px;
+              border-top: 3px solid #1e40af;
+              padding-top: 12px;
               width: 45%;
               text-align: center;
+            }
+            .signature-name {
+              font-weight: 600;
+              color: #1e40af;
+              font-size: 15px;
+              margin-top: 8px;
+            }
+            .signature-title {
+              font-size: 12px;
+              color: #6b7280;
+              margin-top: 4px;
+            }
+            @media (max-width: 900px) {
+              .certificate {
+                width: 100%;
+                margin: 20px auto;
+                padding: 40px 30px;
+                border-width: 12px;
+              }
+              .title {
+                font-size: 32px;
+                letter-spacing: 2px;
+              }
+              .subtitle {
+                font-size: 16px;
+                letter-spacing: 2px;
+              }
+              .header-logo {
+                max-height: 55px;
+              }
+              .recipient-name {
+                font-size: 28px;
+              }
+            }
+            @media (max-width: 600px) {
+              .certificate {
+                padding: 30px 20px;
+                border-width: 10px;
+              }
+              .title {
+                font-size: 24px;
+                letter-spacing: 1px;
+              }
+              .subtitle {
+                font-size: 14px;
+                letter-spacing: 1px;
+              }
+              .header-logo {
+                max-height: 45px;
+              }
+              .recipient-name {
+                font-size: 24px;
+              }
+              .footer {
+                flex-direction: column;
+                gap: 20px;
+              }
+              .signature {
+                width: 100%;
+              }
+            }
+            @media print {
+              body {
+                background: white;
+              }
+              .certificate {
+                box-shadow: none;
+                border-width: 12px;
+              }
+              @page {
+                margin: 1cm;
+                size: letter;
+              }
             }
           </style>
         </head>
         <body>
           <div class="certificate">
-            <div class="header">
-              <div class="title">Certificate of Achievement</div>
-              <div class="subtitle">Teamwork Homecare Training Division</div>
-            </div>
-            <div class="details">This certifies that</div>
-            <div class="recipient">
-              <div class="recipient-name">${certificate.userName ?? 'Candidate'}</div>
-            </div>
-            <div class="details">
-              has successfully completed the requirements for<br/>
-              <strong>${certificate.examTitle ?? 'Training Examination'}</strong><br/>
-              with a score of ${certificate.score}%<br/>
-              Certificate No. ${certificate.certificateNumber}
-            </div>
-            <div class="footer">
-              <div>
-                Issued: ${new Date(certificate.issuedAt).toLocaleDateString()}
+            <div class="watermark">CERTIFICATE</div>
+            <div class="certificate-content">
+              <div class="header">
+                ${getLogoHtml('header-logo')}
+                <div class="title">Certificate of Achievement</div>
+                <div class="subtitle">Teamwork Physio International</div>
               </div>
-              <div class="signature">
-                ${certificate.approvedByName ?? 'Training Administrator'}
+              <div class="details" style="font-size: 18px; margin-bottom: 8px;">This is to certify that</div>
+              <div class="recipient">
+                <div class="recipient-label">has successfully completed</div>
+                <div class="recipient-name">${certificate.userName ?? 'Candidate'}</div>
+              </div>
+              <div class="details">
+                the requirements for<br/>
+                <strong style="font-size: 20px;">${certificate.examTitle ?? 'Training Examination'}</strong><br/>
+                <span style="margin-top: 12px; display: inline-block;">with a score of <strong>${certificate.score}%</strong></span>
+              </div>
+              <div class="certificate-number">
+                <strong>Certificate Number:</strong> ${certificate.certificateNumber}
+              </div>
+              <div class="footer">
+                <div class="footer-left">
+                  <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">Date Issued</div>
+                  <div>${new Date(certificate.issuedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                </div>
+                <div class="signature">
+                  <div class="signature-name">${certificate.approvedByName ?? 'Training Administrator'}</div>
+                  <div class="signature-title">Authorized Signatory</div>
+                </div>
               </div>
             </div>
           </div>

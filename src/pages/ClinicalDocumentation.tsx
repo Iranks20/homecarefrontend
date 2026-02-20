@@ -15,6 +15,7 @@ import { useApi, useApiMutation } from '../hooks/useApi';
 import { useNotifications } from '../contexts/NotificationContext';
 import { healthRecordService, type CreateHealthRecordData } from '../services/healthRecords';
 import type { HealthRecordUpdate } from '../types';
+import { getLogoHtml } from '../utils/logo';
 
 interface ClinicalRecordsData {
   records: HealthRecordUpdate[];
@@ -315,15 +316,185 @@ export default function ClinicalDocumentation() {
         <head>
           <title>Clinical Record - ${record.patientName}</title>
           <style>
-            body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; }
-            h1 { font-size: 24px; margin-bottom: 8px; }
-            h2 { font-size: 18px; margin-top: 16px; margin-bottom: 4px; }
-            p { margin: 4px 0; }
-            pre { background: #f3f4f6; padding: 12px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+              font-size: 14px;
+              line-height: 1.7;
+              color: #1a1a1a;
+              background: #ffffff;
+              padding: 40px 30px;
+              max-width: 1000px;
+              margin: 0 auto;
+            }
+            .watermark {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-45deg);
+              font-size: 100px;
+              color: rgba(0, 0, 0, 0.03);
+              font-weight: bold;
+              z-index: 0;
+              pointer-events: none;
+              white-space: nowrap;
+            }
+            .content {
+              position: relative;
+              z-index: 1;
+            }
+            .header { 
+              display: flex; 
+              flex-direction: column; 
+              gap: 20px; 
+              margin-bottom: 32px; 
+              padding-bottom: 24px; 
+              border-bottom: 3px solid #1e40af; 
+            }
+            .header-top { 
+              display: flex; 
+              align-items: flex-start; 
+              justify-content: space-between; 
+              flex-wrap: wrap; 
+              gap: 20px; 
+            }
+            .header-left {
+              flex: 1;
+            }
+            .header-logo { 
+              max-height: 65px; 
+              width: auto; 
+              flex-shrink: 0;
+              margin-bottom: 10px;
+            }
+            .clinic-name {
+              font-size: 18px;
+              font-weight: 700;
+              color: #1e40af;
+              margin-bottom: 4px;
+            }
+            .clinic-subtitle {
+              font-size: 12px;
+              color: #6b7280;
+            }
+            .header-title { 
+              flex: 1; 
+              min-width: 200px;
+              text-align: right;
+            }
+            h1 { 
+              font-size: 28px; 
+              font-weight: 700;
+              color: #1e40af;
+              margin: 0;
+              letter-spacing: 0.5px;
+            }
+            .document-meta {
+              font-size: 12px;
+              color: #6b7280;
+              margin-top: 8px;
+            }
+            h2 { 
+              font-size: 16px; 
+              font-weight: 600;
+              margin-top: 24px; 
+              margin-bottom: 12px;
+              color: #1e40af;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              padding-bottom: 6px;
+              border-bottom: 2px solid #e5e7eb;
+            }
+            .record-section {
+              background: #f9fafb;
+              padding: 20px;
+              border-radius: 8px;
+              margin: 16px 0;
+              border-left: 4px solid #1e40af;
+            }
+            p { 
+              margin: 8px 0;
+              color: #374151;
+            }
+            pre { 
+              background: #f3f4f6; 
+              padding: 16px; 
+              border-radius: 6px; 
+              font-size: 13px; 
+              overflow-x: auto;
+              border: 1px solid #e5e7eb;
+              font-family: 'Courier New', monospace;
+              line-height: 1.6;
+            }
+            .footer {
+              margin-top: 48px;
+              padding-top: 24px;
+              border-top: 2px solid #e5e7eb;
+              text-align: center;
+              color: #6b7280;
+              font-size: 12px;
+            }
+            .footer strong {
+              color: #374151;
+            }
+            @media (max-width: 600px) {
+              body {
+                padding: 24px 16px;
+              }
+              .header-top { 
+                flex-direction: column; 
+                align-items: flex-start; 
+              }
+              .header-title { 
+                width: 100%; 
+                text-align: left;
+              }
+              h1 {
+                font-size: 24px;
+              }
+            }
+            @media print {
+              body {
+                padding: 20px;
+              }
+              .watermark {
+                display: block;
+              }
+              @page {
+                margin: 1.5cm;
+              }
+            }
           </style>
         </head>
         <body>
-          ${recordDetails}
+          <div class="watermark">CLINICAL RECORD</div>
+          <div class="content">
+            <div class="header">
+              <div class="header-top">
+                <div class="header-left">
+                  ${getLogoHtml('header-logo')}
+                  <div class="clinic-name">Teamwork Physio International</div>
+                  <div class="clinic-subtitle">Healthcare & Rehabilitation Services</div>
+                </div>
+                <div class="header-title">
+                  <h1>CLINICAL RECORD</h1>
+                  <div class="document-meta">Patient: ${record.patientName} | Record Type: ${record.recordType}</div>
+                </div>
+              </div>
+            </div>
+            <div class="record-section">
+              ${recordDetails}
+            </div>
+            <div class="footer">
+              <p><strong>Confidential Medical Document</strong></p>
+              <p>This document contains protected health information and is intended for authorized healthcare use only.</p>
+              <p style="margin-top: 12px; font-size: 11px; color: #9ca3af;">Generated on ${new Date().toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+            </div>
+          </div>
         </body>
       </html>
     `);
