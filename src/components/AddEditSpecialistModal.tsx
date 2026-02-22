@@ -99,14 +99,14 @@ export default function AddEditSpecialistModal({
       setFormData({
         username: (specialist as Specialist & { username?: string }).username ?? '',
         name: specialist.name,
-        email: specialist.email,
+        email: specialist.email ?? '',
         password: '',
         phone: specialist.phone,
-        licenseNumber: specialist.licenseNumber,
+        licenseNumber: specialist.licenseNumber ?? '',
         specialization: specialist.specialization,
         experience: specialist.experience,
         certifications: specialist.certifications,
-        hourlyRate: specialist.hourlyRate,
+        hourlyRate: specialist.hourlyRate ?? 0,
         bio: specialist.bio ?? '',
         hireDate: specialist.hireDate
           ? new Date(specialist.hireDate).toISOString().split('T')[0]
@@ -353,7 +353,7 @@ export default function AddEditSpecialistModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                  Email Address <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="email"
@@ -423,14 +423,13 @@ export default function AddEditSpecialistModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  License Number *
+                  License Number <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
                   name="licenseNumber"
                   value={formData.licenseNumber}
                   onChange={handleInputChange}
-                  required
                   className="input-field"
                   placeholder="Enter license number"
                   disabled={isSubmitting}
@@ -597,7 +596,7 @@ export default function AddEditSpecialistModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Hourly Rate *
+                  Hourly Rate <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="number"
@@ -606,7 +605,6 @@ export default function AddEditSpecialistModal({
                   onChange={handleInputChange}
                   min={0}
                   step="0.01"
-                  required
                   className="input-field"
                   placeholder="Enter hourly rate"
                   disabled={isSubmitting}

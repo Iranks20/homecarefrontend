@@ -4,13 +4,14 @@ import { API_ENDPOINTS } from '../config/api';
 export interface Therapist {
   id: string;
   name: string;
-  email: string;
+  username?: string | null;
+  email?: string | null;
   phone: string;
-  licenseNumber: string;
+  licenseNumber?: string | null;
   specialization: string;
   experience: number;
   certifications: string[];
-  hourlyRate: number;
+  hourlyRate?: number | null;
   bio?: string;
   status: 'active' | 'inactive' | 'on-leave';
   hireDate: string;
@@ -29,14 +30,14 @@ export interface TherapistSearchParams {
 export interface CreateTherapistData {
   username: string;
   name: string;
-  email: string;
+  email?: string | null;
   password: string;
   phone: string;
-  licenseNumber: string;
+  licenseNumber?: string | null;
   specialization: string;
   experience: number;
   certifications: string[];
-  hourlyRate: number;
+  hourlyRate?: number | null;
   bio?: string;
   hireDate: string;
   avatar?: string;

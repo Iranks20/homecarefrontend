@@ -287,7 +287,7 @@ export default function Nurses() {
                             {nurse.name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {nurse.email}
+                            {nurse.email ?? <span className="text-gray-400 italic">Not provided</span>}
                           </div>
                         </div>
                       </div>

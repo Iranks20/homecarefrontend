@@ -321,7 +321,7 @@ export default function AddEditNurseModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Email address
+                  Email address <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="email"

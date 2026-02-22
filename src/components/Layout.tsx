@@ -76,6 +76,16 @@ const getNavigationForRole = (role: string) => {
     { name: 'Schedule Session', href: '/scheduling', icon: Calendar },
   ];
 
+  // Therapist navigation - same as specialist (treat patients, schedule, documentation)
+  const therapistNavigation = [
+    ...baseNavigation,
+    { name: 'My Schedule', href: '/my-schedule', icon: Calendar },
+    { name: 'Patients', href: '/patients', icon: UserCheck },
+    { name: 'Investigations', href: '/investigations', icon: TestTube },
+    { name: 'Clinical Documentation', href: '/health-records', icon: FileText },
+    { name: 'Schedule Session', href: '/scheduling', icon: Calendar },
+  ];
+
   // Nurse navigation - vitals recording and patient management
   const nurseNavigation = [
     ...baseNavigation,
@@ -126,6 +136,8 @@ const getNavigationForRole = (role: string) => {
       return doctorNavigation;
     case 'specialist':
       return specialistNavigation;
+    case 'therapist':
+      return therapistNavigation;
     case 'nurse':
       return nurseNavigation;
     case 'admin':

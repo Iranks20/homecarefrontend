@@ -161,7 +161,7 @@ export default function NurseProfile() {
             <div className="mt-6 space-y-4">
               <div className="flex items-center text-sm text-gray-600">
                 <Mail className="h-4 w-4 mr-3" />
-                {nurse.email}
+                {nurse.email ?? <span className="text-gray-400 italic">Not provided</span>}
               </div>
               <div className="flex items-center text-sm text-gray-600">
                 <Phone className="h-4 w-4 mr-3" />
@@ -169,7 +169,7 @@ export default function NurseProfile() {
               </div>
               <div className="flex items-center text-sm text-gray-600">
                 <Award className="h-4 w-4 mr-3" />
-                License: {nurse.licenseNumber}
+                License: {nurse.licenseNumber ?? <span className="text-gray-400 italic">Not provided</span>}
               </div>
               <div className="flex items-center text-sm text-gray-600">
                 <Calendar className="h-4 w-4 mr-3" />

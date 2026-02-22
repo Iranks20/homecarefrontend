@@ -37,7 +37,7 @@ export default function Specialists() {
       const matchesSearch =
         specialist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         specialist.specialization.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        specialist.email.toLowerCase().includes(searchTerm.toLowerCase());
+        specialist.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesSpecialization =
         filterSpecialization === 'all' || specialist.specialization === filterSpecialization;
@@ -353,7 +353,7 @@ export default function Specialists() {
                             {specialist.name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {specialist.email}
+                            {specialist.email ?? <span className="text-gray-400 italic">Not provided</span>}
                           </div>
                         </div>
                       </div>
@@ -389,7 +389,7 @@ export default function Specialists() {
                       <div className="flex items-center">
                         <Star className="mr-2 h-4 w-4 text-gray-400" />
                         <div className="text-sm text-gray-900">
-                          ${specialist.hourlyRate}/hr
+                          {specialist.hourlyRate != null ? `$${specialist.hourlyRate}/hr` : <span className="text-gray-400 italic">Not set</span>}
                         </div>
                       </div>
                     </td>

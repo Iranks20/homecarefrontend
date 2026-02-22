@@ -12,14 +12,14 @@ export interface SpecialistSearchParams {
 export interface CreateSpecialistData {
   username: string;
   name: string;
-  email: string;
+  email?: string | null;
   password: string;
   phone: string;
-  licenseNumber: string;
+  licenseNumber?: string | null;
   specialization: Specialist['specialization'];
   experience: number;
   certifications: string[];
-  hourlyRate: number;
+  hourlyRate?: number | null;
   bio?: string;
   hireDate: string;
   avatar?: string;

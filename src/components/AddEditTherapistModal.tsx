@@ -101,7 +101,7 @@ export default function AddEditTherapistModal({
         try {
           const fullTherapist = await therapistService.getTherapist(therapist.id);
           setFormData({
-            username: (fullTherapist as { username?: string }).username || '',
+            username: fullTherapist.username ?? (fullTherapist as { username?: string }).username ?? '',
             name: fullTherapist.name || '',
             email: fullTherapist.email || '',
             password: '',
@@ -123,7 +123,7 @@ export default function AddEditTherapistModal({
         } catch (err) {
           // Fallback to basic data if fetch fails
           setFormData({
-            username: (therapist as { username?: string }).username || '',
+            username: therapist.username ?? (therapist as { username?: string }).username ?? '',
             name: therapist.name || '',
             email: therapist.email || '',
             password: '',
@@ -258,8 +258,8 @@ export default function AddEditTherapistModal({
     }
 
     // Validate required fields
-    if (!formData.name || !formData.email) {
-      setError('Name and email are required.');
+    if (!formData.name) {
+      setError('Name is required.');
       return;
     }
 
@@ -268,13 +268,8 @@ export default function AddEditTherapistModal({
       return;
     }
 
-    if (mode === 'add' && (!formData.experience || formData.experience < 0)) {
+    if (mode === 'add' && (formData.experience == null || formData.experience < 0)) {
       setError('Experience must be a valid number.');
-      return;
-    }
-
-    if (mode === 'add' && (!formData.hourlyRate || formData.hourlyRate <= 0)) {
-      setError('Hourly rate must be greater than 0.');
       return;
     }
 
@@ -332,7 +327,7 @@ export default function AddEditTherapistModal({
             <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Username *
+                {mode === 'edit' ? 'Username (for reference)' : 'Username *'}
               </label>
               <input
                 type="text"
@@ -341,11 +336,12 @@ export default function AddEditTherapistModal({
                 onChange={handleInputChange}
                 required={mode === 'add'}
                 disabled={mode === 'edit'}
-                className="input-field disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                readOnly={mode === 'edit'}
+                className="input-field disabled:bg-gray-100 disabled:text-gray-700 disabled:cursor-default"
                 placeholder="e.g. lisa.anderson (used for login)"
               />
               {mode === 'edit' && (
-                <p className="text-xs text-gray-500 mt-1">Username cannot be changed after creation</p>
+                <p className="text-xs text-gray-500 mt-1">Shown for reference; cannot be changed after creation.</p>
               )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -367,7 +363,7 @@ export default function AddEditTherapistModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                  Email Address <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="email"
@@ -378,7 +374,7 @@ export default function AddEditTherapistModal({
                   placeholder="Enter email address"
                   disabled={isSaving || isEditMode}
                 />
-                <p className="text-xs text-gray-500 mt-1">This will be used for login</p>
+                <p className="text-xs text-gray-500 mt-1">Used for login when provided</p>
               </div>
 
               {mode === 'add' && (
@@ -468,14 +464,13 @@ export default function AddEditTherapistModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  License Number *
+                  License Number <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
                   name="licenseNumber"
                   value={formData.licenseNumber}
                   onChange={handleInputChange}
-                  required={mode === 'add'}
                   className="input-field"
                   placeholder="Enter license number"
                   disabled={isSaving}
@@ -501,14 +496,13 @@ export default function AddEditTherapistModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Hourly Rate ($) *
+                  Hourly Rate ($) <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="number"
                   name="hourlyRate"
                   value={formData.hourlyRate}
                   onChange={handleInputChange}
-                  required={mode === 'add'}
                   min="0"
                   step="0.01"
                   className="input-field"

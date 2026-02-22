@@ -12,7 +12,7 @@ export default function Therapists() {
   const isAdmin = user?.role === 'admin';
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState<Therapist | null>(null);
@@ -42,7 +42,7 @@ export default function Therapists() {
       const matchesSearch =
         !search ||
         therapist.name.toLowerCase().includes(search) ||
-        therapist.email.toLowerCase().includes(search) ||
+        therapist.email?.toLowerCase().includes(search) ||
         therapist.specialization.toLowerCase().includes(search) ||
         therapist.licenseNumber?.toLowerCase().includes(search);
 
@@ -230,7 +230,7 @@ export default function Therapists() {
                         </div>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{therapist.email}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{therapist.email ?? <span className="text-gray-400 italic">Not provided</span>}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700 capitalize">
                       {therapist.specialization ?? '—'}
                     </td>

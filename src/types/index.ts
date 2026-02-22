@@ -252,9 +252,9 @@ export interface DashboardStats {
 export interface Specialist {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
   phone: string;
-  licenseNumber: string;
+  licenseNumber?: string | null;
   specialization: 'clinical-psychologist' | 'nutritionist' | 'critical-care-nurse' | 'medical-doctor' | 'geriatrician' | 'palliative-care-specialist' | 'senior-midwife';
   experience: number;
   certifications: string[];
@@ -262,7 +262,7 @@ export interface Specialist {
   avatar?: string;
   status: 'active' | 'inactive' | 'on-leave';
   hireDate: string;
-  hourlyRate: number;
+  hourlyRate?: number | null;
   bio?: string;
 }
 
@@ -526,9 +526,9 @@ export interface MonthlyTrend {
 export interface Physiotherapist {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
   phone: string;
-  licenseNumber: string;
+  licenseNumber?: string | null;
   specialization: string[];
   experience: number;
   certifications: string[];
@@ -536,7 +536,7 @@ export interface Physiotherapist {
   avatar?: string;
   status: 'active' | 'inactive' | 'on-leave';
   hireDate: string;
-  hourlyRate: number;
+  hourlyRate?: number | null;
   bio?: string;
 }
 
