@@ -81,7 +81,7 @@ export default function Patients() {
   const loadTherapists = async () => {
     try {
       const { users } = await userService.getMedicalStaff({
-        role: 'SPECIALIST',
+        role: 'THERAPIST',
         limit: 500,
       });
       setTherapists(users.map((therapist) => {
@@ -128,6 +128,23 @@ export default function Patients() {
     }
   };
 
+  /** Format specialization for display: slug "clinical-psychologist" -> "Clinical Psychologist", or enum NEUROLOGIST -> "Neurologist" */
+  const formatSpecializationDisplay = (spec?: string | null) => {
+    if (!spec) return undefined;
+    // Slug from Specialist table (e.g. clinical-psychologist, neurologist)
+    if (spec.includes('-') || spec.includes(' ')) {
+      return spec
+        .split(/[- ]/)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+    }
+    // Enum from User (e.g. NEUROLOGIST)
+    return spec
+      .split('_')
+      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const loadSpecialists = async () => {
     try {
       const { users } = await userService.getMedicalStaff({
@@ -135,18 +152,11 @@ export default function Patients() {
         limit: 500,
       });
       setSpecialists(users.map((specialist) => {
-        // Format specialization for display (e.g., NEUROLOGIST -> Neurologist)
-        const formatSpecialization = (spec?: string | null) => {
-          if (!spec) return undefined;
-          return spec
-            .split('_')
-            .map(word => word.charAt(0) + word.slice(1).toLowerCase())
-            .join(' ');
-        };
-        return { 
-          id: specialist.id, 
+        const raw = (specialist as any).specialization ?? (specialist as any).specialistSpecialization;
+        return {
+          id: specialist.id,
           name: specialist.name,
-          specialization: formatSpecialization((specialist as any).specialistSpecialization)
+          specialization: formatSpecializationDisplay(raw),
         };
       }));
     } catch (err: any) {
@@ -156,19 +166,13 @@ export default function Patients() {
         const { users: allUsers } = await userService.getUsers({
           limit: 500,
         });
-        const specialistUsers = allUsers.filter(u => u.role === 'specialist');
+        const specialistUsers = allUsers.filter((u) => String(u.role).toLowerCase() === 'specialist');
         setSpecialists(specialistUsers.map((specialist) => {
-          const formatSpecialization = (spec?: string | null) => {
-            if (!spec) return undefined;
-            return spec
-              .split('_')
-              .map(word => word.charAt(0) + word.slice(1).toLowerCase())
-              .join(' ');
-          };
-          return { 
-            id: specialist.id, 
+          const raw = (specialist as any).specialization ?? (specialist as any).specialistSpecialization;
+          return {
+            id: specialist.id,
             name: specialist.name,
-            specialization: formatSpecialization((specialist as any).specialistSpecialization)
+            specialization: formatSpecializationDisplay(raw),
           };
         }));
       } catch (fallbackErr) {

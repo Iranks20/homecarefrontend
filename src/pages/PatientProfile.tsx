@@ -877,7 +877,12 @@ export default function PatientProfile() {
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium text-gray-900">{invoice.serviceName}</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {(invoice as { invoiceNumber?: string }).invoiceNumber
+                                ? `Invoice #${(invoice as { invoiceNumber: string }).invoiceNumber} · `
+                                : ''}
+                              {invoice.serviceName}
+                            </span>
                             <span
                               className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                 invoice.status === 'paid'

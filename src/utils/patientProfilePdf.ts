@@ -17,6 +17,7 @@ const ACCENT_COLOR = [59, 130, 246]; // Light blue
 
 interface InvoiceLike {
   id: string;
+  invoiceNumber?: string;
   serviceName: string;
   amount: number;
   date: string;
@@ -260,7 +261,8 @@ export async function generatePatientProfilePdf(data: PatientProfilePdfData): Pr
     y += LINE_HEIGHT + 2;
     invoices.slice(0, 8).forEach((inv) => {
       y = addPageIfNeeded(doc, y, 12);
-      doc.text(`${inv.serviceName} • $${inv.amount.toFixed(2)} • ${inv.status} • Due ${new Date(inv.dueDate).toLocaleDateString()}`, MARGIN, y);
+      const invNum = inv.invoiceNumber ? `#${inv.invoiceNumber} · ` : '';
+    doc.text(`${invNum}${inv.serviceName} • $${inv.amount.toFixed(2)} • ${inv.status} • Due ${new Date(inv.dueDate).toLocaleDateString()}`, MARGIN, y);
       y += LINE_HEIGHT;
     });
     y += SECTION_GAP;

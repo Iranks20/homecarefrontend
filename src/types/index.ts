@@ -167,6 +167,7 @@ export interface Appointment {
 
 export interface Invoice {
   id: string;
+  invoiceNumber?: string;
   patientId: string;
   patientName: string;
   serviceId: string;

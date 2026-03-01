@@ -103,6 +103,7 @@ export default function Billing() {
       const matchesSearch =
         (invoice.patientName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (invoice.serviceName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (invoice.invoiceNumber?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (invoice.id?.toLowerCase() || '').includes(searchTerm.toLowerCase());
 
       let matchesDate = true;
@@ -243,7 +244,7 @@ export default function Billing() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Invoice ${invoice.id} - Teamwork Physio</title>
+          <title>Invoice #${invoice.invoiceNumber ?? invoice.id} - Teamwork Physio</title>
           <meta charset="UTF-8">
           <style>
             * {
@@ -535,7 +536,7 @@ export default function Billing() {
                 </div>
                 <div class="header-right">
                   <div class="document-type">INVOICE</div>
-                  <div class="invoice-number">Invoice #${invoice.id}</div>
+                  <div class="invoice-number">Invoice #${invoice.invoiceNumber ?? invoice.id}</div>
                 </div>
               </div>
             </div>
@@ -597,9 +598,9 @@ export default function Billing() {
   };
 
   const exportInvoicesToCsv = () => {
-    const headers = ['Invoice ID', 'Patient', 'Service', 'Amount (UGX)', 'Date', 'Due Date', 'Status', 'Description'];
+    const headers = ['Invoice #', 'Patient', 'Service', 'Amount (UGX)', 'Date', 'Due Date', 'Status', 'Description'];
     const rows = filteredInvoices.map((inv) => [
-      escapeCsv(inv.id),
+      escapeCsv(inv.invoiceNumber ?? inv.id),
       escapeCsv(inv.patientName ?? ''),
       escapeCsv(inv.serviceName ?? ''),
       escapeCsv(inv.amount),
@@ -658,7 +659,7 @@ export default function Billing() {
       .map(
         (inv) => `
       <tr>
-        <td>${escapeHtml(inv.id)}</td>
+        <td>${escapeHtml(inv.invoiceNumber ?? inv.id)}</td>
         <td>${escapeHtml(inv.patientName ?? '')}</td>
         <td>${escapeHtml(inv.serviceName ?? '')}</td>
         <td>${formatUgx(inv.amount)}</td>
@@ -684,7 +685,7 @@ export default function Billing() {
           <p>Exported ${new Date().toLocaleString()} — ${filteredInvoices.length} record(s)</p>
           <table>
             <thead><tr>
-              <th>Invoice ID</th><th>Patient</th><th>Service</th><th>Amount</th><th>Date</th><th>Due Date</th><th>Status</th>
+              <th>Invoice #</th><th>Patient</th><th>Service</th><th>Amount</th><th>Date</th><th>Due Date</th><th>Status</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
@@ -927,7 +928,7 @@ export default function Billing() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <FileText className="h-4 w-4 text-gray-400 mr-2" />
-                        <div className="text-sm font-medium text-gray-900">{invoice.id}</div>
+                        <div className="text-sm font-medium text-gray-900">{invoice.invoiceNumber ?? invoice.id}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -1063,7 +1064,7 @@ export default function Billing() {
             <div className="flex items-center justify-between border-b px-6 py-4 sticky top-0 bg-white z-10">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">Invoice Details</h2>
-                <p className="text-sm text-gray-500">Invoice #{selectedInvoice.id}</p>
+                <p className="text-sm text-gray-500">Invoice #{selectedInvoice.invoiceNumber ?? selectedInvoice.id}</p>
               </div>
               <div className="flex items-center space-x-2">
                 <button

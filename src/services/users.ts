@@ -142,7 +142,7 @@ export class UserService {
   }
 
   async getMedicalStaff(
-    params?: { role?: 'DOCTOR' | 'SPECIALIST' | 'NURSE'; limit?: number; page?: number }
+    params?: { role?: 'DOCTOR' | 'SPECIALIST' | 'THERAPIST' | 'NURSE'; limit?: number; page?: number }
   ): Promise<{
     users: User[];
     pagination?: PaginatedResponse<User>['pagination'];
