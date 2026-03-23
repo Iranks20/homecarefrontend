@@ -7,8 +7,9 @@
  * Returns the public path to the logo
  */
 export function getLogoUrl(): string {
-  // In Vite, files in public folder are served from root
-  return '/assets/company-logo.png';
+  const base = import.meta.env.BASE_URL || '/';
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  return `${normalizedBase}assets/company-logo.png`;
 }
 
 /**
