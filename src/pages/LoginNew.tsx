@@ -81,7 +81,7 @@ export default function Login() {
           <div className="flex justify-center mb-8">
             <img 
               src={getLogoUrl()} 
-              alt="Teamwork Physio International" 
+              alt="Teamwork physiotherapy centre International" 
               className="h-24 sm:h-28 md:h-32 lg:h-36 w-auto object-contain"
               onError={(e) => {
                 // Fallback to placeholder if logo fails to load

@@ -477,7 +477,7 @@ export default function ClinicalDocumentation() {
               <div class="header-top">
                 <div class="header-left">
                   ${getLogoHtml('header-logo')}
-                  <div class="clinic-name">Teamwork Physio International</div>
+                  <div class="clinic-name">Teamwork physiotherapy centre International</div>
                   <div class="clinic-subtitle">Healthcare & Rehabilitation Services</div>
                 </div>
                 <div class="header-title">

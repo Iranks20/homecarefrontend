@@ -28,12 +28,15 @@ type ServiceApi = Omit<Service, 'category' | 'features'> & {
 };
 
 const SERVICE_CATEGORY_MAP: Record<string, Service['category']> = {
-  NURSING: 'Nursing',
   PHYSIOTHERAPY: 'Physiotherapy',
-  PALLIATIVE: 'Palliative Care',
-  NUTRITION: 'Nutrition',
-  MENTAL_HEALTH: 'Mental Health',
-  MATERNAL_CARE: 'Maternal Care',
+  NEUROLOGY: 'Neurology',
+  ORTHOPEDICS: 'Orthopedics',
+  SPEECH_THERAPY: 'Speech Therapy',
+  OCCUPATIONAL_THERAPY: 'Occupational Therapy',
+  GERIATRIC_CARE: 'Geriatric Care',
+  HOME_CARE: 'Home Care',
+  ASSESSMENT: 'Assessment',
+  FOLLOW_UP: 'Follow Up',
 };
 
 const SERVICE_CATEGORY_REVERSE_MAP: Record<Service['category'], string> = Object.entries(

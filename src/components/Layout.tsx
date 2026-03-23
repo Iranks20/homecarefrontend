@@ -167,7 +167,7 @@ export default function Layout({ children, user }: LayoutProps) {
             <div className="flex items-center justify-center flex-1">
               <img 
                 src={getLogoUrl()} 
-                alt="Teamwork Physio International" 
+                alt="Teamwork physiotherapy centre International" 
                 className="h-12 sm:h-14 md:h-16 w-auto object-contain max-w-full"
                 onError={(e) => {
                   // Fallback to placeholder if logo fails to load
@@ -213,7 +213,7 @@ export default function Layout({ children, user }: LayoutProps) {
           <div className="flex h-auto shrink-0 items-center justify-center px-4 py-2">
             <img 
               src={getLogoUrl()} 
-              alt="Teamwork Physio International" 
+              alt="Teamwork physiotherapy centre International" 
               className="h-12 lg:h-14 xl:h-16 w-auto object-contain max-w-full"
               onError={(e) => {
                 // Fallback to placeholder if logo fails to load

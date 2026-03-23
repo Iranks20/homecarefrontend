@@ -2,14 +2,14 @@ import { jsPDF } from 'jspdf';
 import type { Patient, MedicalRecord, ProgressRecord, PatientCase, HealthRecordUpdate } from '../types';
 import { getLogoBase64 } from './logo';
 
-const MARGIN = 20;
+const MARGIN = 12;
 const PAGE_WIDTH = 210;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-const LINE_HEIGHT = 7;
-const SECTION_GAP = 12;
-const TITLE_SIZE = 18;
-const SECTION_SIZE = 12;
-const BODY_SIZE = 10;
+const LINE_HEIGHT = 5.2;
+const SECTION_GAP = 8;
+const TITLE_SIZE = 16;
+const SECTION_SIZE = 11;
+const BODY_SIZE = 9;
 const HEADER_COLOR = [30, 64, 175]; // Professional blue
 const TEXT_COLOR = [31, 41, 55]; // Dark gray
 const SECONDARY_COLOR = [107, 114, 128]; // Medium gray
@@ -109,7 +109,7 @@ export async function generatePatientProfilePdf(data: PatientProfilePdfData): Pr
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2]);
-      doc.text('Teamwork Physio International', MARGIN + logoWidth + 6, y + 4);
+      doc.text('Teamwork physiotherapy centre International', MARGIN + logoWidth + 6, y + 4);
       
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
@@ -301,7 +301,7 @@ export async function generatePatientProfilePdf(data: PatientProfilePdfData): Pr
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(SECONDARY_COLOR[0], SECONDARY_COLOR[1], SECONDARY_COLOR[2]);
     
-    const footerLeft = `Teamwork Physio International | Confidential Medical Document`;
+    const footerLeft = `Teamwork physiotherapy centre International | Confidential Medical Document`;
     const footerRight = `Page ${i} of ${pageCount}`;
     
     doc.text(footerLeft, MARGIN, 288);

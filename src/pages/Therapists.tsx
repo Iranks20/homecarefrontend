@@ -93,7 +93,9 @@ export default function Therapists() {
     if (!selectedTherapist) return;
     try {
       const updatePayload: Partial<CreateTherapistData> = {
+        username: payload.username,
         name: payload.name,
+        email: payload.email,
         phone: payload.phone,
         specialization: payload.specialization,
         licenseNumber: payload.licenseNumber,

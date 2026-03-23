@@ -252,6 +252,7 @@ export interface DashboardStats {
 // New interfaces for comprehensive system
 export interface Specialist {
   id: string;
+  username?: string;
   name: string;
   email?: string | null;
   phone: string;

@@ -240,7 +240,7 @@ export default function CertificatePreviewModal({
               <div class="header">
                 ${getLogoHtml('header-logo')}
                 <div class="title">Certificate of Achievement</div>
-                <div class="subtitle">Teamwork Physio International</div>
+                <div class="subtitle">Teamwork physiotherapy centre International</div>
               </div>
               <div class="details" style="font-size: 18px; margin-bottom: 8px;">This is to certify that</div>
               <div class="recipient">

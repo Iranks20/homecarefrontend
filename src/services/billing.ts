@@ -55,6 +55,7 @@ function normalizeInvoice(invoice: InvoiceApi): Invoice {
   const status = invoice.status?.toLowerCase() as Invoice['status'] | undefined;
   return {
     id: invoice.id,
+    invoiceNumber: invoice.invoiceNumber,
     patientId: invoice.patientId,
     patientName: invoice.patientName ?? invoice.patient?.name ?? 'Unknown Patient',
     serviceId: invoice.serviceId,

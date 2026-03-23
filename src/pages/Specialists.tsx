@@ -21,6 +21,7 @@ export default function Specialists() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedSpecialist, setSelectedSpecialist] = useState<Specialist | null>(null);
+  const [loadingEditSpecialist, setLoadingEditSpecialist] = useState(false);
   const { addNotification } = useNotifications();
 
   const {
@@ -146,9 +147,26 @@ export default function Specialists() {
     }
   };
 
-  const openEditModal = (specialist: Specialist) => {
-    setSelectedSpecialist(specialist);
-    setIsEditModalOpen(true);
+  const openEditModal = async (specialist: Specialist) => {
+    setLoadingEditSpecialist(true);
+    try {
+      const details = await specialistService.getSpecialist(specialist.id);
+      setSelectedSpecialist(details);
+      setIsEditModalOpen(true);
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to load specialist details';
+      toast.error(errorMessage);
+      addNotification({
+        title: 'Unable to load specialist',
+        message: errorMessage,
+        type: 'error',
+        userId: 'system',
+        priority: 'high',
+        category: 'system',
+      });
+    } finally {
+      setLoadingEditSpecialist(false);
+    }
   };
 
   const openViewModal = (specialist: Specialist) => {

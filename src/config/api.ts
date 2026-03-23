@@ -71,6 +71,7 @@ export const API_ENDPOINTS = {
     MEDICAL_HISTORY: (id: string) => `/v1/patients/${id}/medical-history`,
     PROGRESS: (id: string) => `/v1/patients/${id}/progress`,
     CASES: (id: string) => `/v1/patients/${id}/cases`,
+    CASE_VISITS: (patientId: string, caseId: string) => `/v1/patients/${patientId}/cases/${caseId}/visits`,
   },
   
   // Nurses
@@ -125,8 +126,10 @@ export const API_ENDPOINTS = {
   SERVICES: {
     BASE: '/v1/services',
     BY_ID: (id: string) => `/v1/services/${id}`,
-    CATEGORIES: '/v1/services/categories',
-    TYPES: '/v1/services/types',
+  },
+  SERVICE_CATEGORIES: {
+    BASE: '/v1/services/categories',
+    BY_ID: (id: string) => `/v1/services/categories/${id}`,
   },
   
   // Health Records

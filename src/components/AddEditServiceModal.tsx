@@ -9,7 +9,6 @@ interface ServiceFormValues {
   price: number;
   duration: number;
   features: string[];
-  image?: string;
 }
 
 interface AddEditServiceModalProps {
@@ -20,15 +19,6 @@ interface AddEditServiceModalProps {
   mode: 'add' | 'edit';
   categories?: string[];
 }
-
-const DEFAULT_CATEGORIES = [
-  'Nursing',
-  'Physiotherapy',
-  'Palliative Care',
-  'Nutrition',
-  'Mental Health',
-  'Maternal Care',
-];
 
 export default function AddEditServiceModal({
   isOpen,
@@ -45,20 +35,19 @@ export default function AddEditServiceModal({
     price: 0,
     duration: 60,
     features: [],
-    image: '',
   });
   const [newFeature, setNewFeature] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const categoryOptions = useMemo(() => {
-    const merged = new Set<string>(DEFAULT_CATEGORIES);
+    const merged = new Set<string>();
     categories?.forEach((cat) => {
       if (cat) {
         merged.add(cat);
       }
     });
-    return Array.from(merged);
+    return Array.from(merged).sort();
   }, [categories]);
 
   useEffect(() => {
@@ -77,7 +66,6 @@ export default function AddEditServiceModal({
         price: service.price ?? 0,
         duration: service.duration,
         features: service.features,
-        image: service.image || '',
       });
     } else if (mode === 'add') {
       setFormData({
@@ -87,7 +75,6 @@ export default function AddEditServiceModal({
         price: 0,
         duration: 60,
         features: [],
-        image: '',
       });
     }
   }, [mode, service, isOpen]);
@@ -319,29 +306,6 @@ export default function AddEditServiceModal({
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Image URL */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Package className="h-5 w-5 mr-2 text-primary-600" />
-              Service Image
-            </h3>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Image URL
-              </label>
-              <input
-                type="url"
-                name="image"
-                value={formData.image}
-                onChange={handleInputChange}
-                className="input-field"
-                placeholder="https://example.com/service-image.jpg"
-                disabled={isSubmitting}
-              />
-            </div>
           </div>
 
           {/* Form Actions */}

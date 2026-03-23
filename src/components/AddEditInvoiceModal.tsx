@@ -12,18 +12,31 @@ interface AddEditInvoiceModalProps {
   services: Service[];
 }
 
-const createDefaultForm = (invoice?: Invoice | null): Omit<Invoice, 'id'> => ({
-  patientId: invoice?.patientId || '',
-  patientName: invoice?.patientName || '',
-  serviceId: invoice?.serviceId || '',
-  serviceName: invoice?.serviceName || '',
-  amount: invoice?.amount || 0,
-  date: invoice?.date || new Date().toISOString().split('T')[0],
-  dueDate:
-    invoice?.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  status: invoice?.status || 'pending',
-  description: invoice?.description || '',
-});
+const formatDateForInput = (value?: string, fallback?: Date): string => {
+  if (value) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+  }
+  const d = fallback ?? new Date();
+  return d.toISOString().split('T')[0];
+};
+
+const createDefaultForm = (invoice?: Invoice | null): Omit<Invoice, 'id'> => {
+  const defaultDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  return {
+    patientId: invoice?.patientId || '',
+    patientName: invoice?.patientName || '',
+    serviceId: invoice?.serviceId || '',
+    serviceName: invoice?.serviceName || '',
+    amount: invoice?.amount || 0,
+    date: formatDateForInput(invoice?.date),
+    dueDate: formatDateForInput(invoice?.dueDate, defaultDue),
+    status: invoice?.status || 'pending',
+    description: invoice?.description || '',
+  };
+};
 
 export default function AddEditInvoiceModal({
   isOpen,

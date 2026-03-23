@@ -47,5 +47,5 @@ export async function getLogoBase64(): Promise<string> {
  */
 export function getLogoHtml(className = '', style = 'max-height: 80px; width: auto;'): string {
   const logoUrl = getLogoUrl();
-  return `<img src="${logoUrl}" alt="Teamwork Physio International" class="${className}" style="${style}" />`;
+  return `<img src="${logoUrl}" alt="Teamwork physiotherapy centre International" class="${className}" style="${style}" />`;
 }

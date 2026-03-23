@@ -240,11 +240,14 @@ export default function Billing() {
       return;
     }
 
+    const invoiceNumberDisplay = invoice.invoiceNumber;
+    const invoiceTitleText = invoiceNumberDisplay ? `Invoice #${invoiceNumberDisplay}` : 'Invoice';
+
     const printContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Invoice #${invoice.invoiceNumber ?? invoice.id} - Teamwork Physio</title>
+          <title>${invoiceTitleText} - Teamwork Physio</title>
           <meta charset="UTF-8">
           <style>
             * {
@@ -254,13 +257,13 @@ export default function Billing() {
             }
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-              font-size: 14px;
+              font-size: 13px;
               line-height: 1.6;
               color: #1a1a1a;
               background: #ffffff;
-              max-width: 900px;
+              max-width: 700px;
               margin: 0 auto;
-              padding: 40px 30px;
+              padding: 24px 18px;
             }
             .watermark {
               position: fixed;
@@ -319,11 +322,11 @@ export default function Billing() {
               min-width: 200px;
             }
             .document-type {
-              font-size: 32px;
+              font-size: 24px;
               font-weight: 700;
               color: #1e40af;
               letter-spacing: 1px;
-              margin-bottom: 8px;
+              margin-bottom: 4px;
             }
             .invoice-number {
               font-size: 14px;
@@ -333,9 +336,9 @@ export default function Billing() {
             .invoice-info {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 32px;
-              margin-bottom: 36px;
-              padding: 24px;
+              gap: 20px;
+              margin-bottom: 24px;
+              padding: 16px;
               background: #f9fafb;
               border-radius: 8px;
               border-left: 4px solid #1e40af;
@@ -374,7 +377,7 @@ export default function Billing() {
               width: 100%;
               border-collapse: separate;
               border-spacing: 0;
-              margin: 24px 0;
+              margin: 16px 0;
               background: #ffffff;
               border-radius: 8px;
               overflow: hidden;
@@ -448,12 +451,12 @@ export default function Billing() {
               color: #1e40af;
             }
             .footer {
-              margin-top: 48px;
-              padding-top: 24px;
-              border-top: 2px solid #e5e7eb;
+              margin-top: 24px;
+              padding-top: 16px;
+              border-top: 1px solid #e5e7eb;
               text-align: center;
               color: #6b7280;
-              font-size: 12px;
+              font-size: 11px;
             }
             .footer p {
               margin: 4px 0;
@@ -462,7 +465,7 @@ export default function Billing() {
               color: #374151;
             }
             .no-print {
-              margin-top: 40px;
+              margin-top: 16px;
               text-align: center;
             }
             .print-button {
@@ -516,9 +519,9 @@ export default function Billing() {
               table {
                 page-break-inside: avoid;
               }
-              @page {
-                margin: 1cm;
-              }
+            @page {
+              margin: 0.5cm;
+            }
             }
           </style>
         </head>
@@ -530,13 +533,13 @@ export default function Billing() {
                 <div class="header-left">
                   ${getLogoHtml('header-logo')}
                   <div class="clinic-info">
-                    <strong>Teamwork Physio International</strong>
+                    <strong>Teamwork physiotherapy centre International</strong>
                     Healthcare & Rehabilitation Services
                   </div>
                 </div>
                 <div class="header-right">
                   <div class="document-type">INVOICE</div>
-                  <div class="invoice-number">Invoice #${invoice.invoiceNumber ?? invoice.id}</div>
+                  <div class="invoice-number">${invoiceTitleText}</div>
                 </div>
               </div>
             </div>
@@ -579,7 +582,7 @@ export default function Billing() {
             </div>
             
             <div class="footer">
-              <p><strong>Thank you for choosing Teamwork Physio International</strong></p>
+              <p><strong>Thank you for choosing Teamwork physiotherapy centre International</strong></p>
               <p>This is an official invoice. Please retain for your records.</p>
               <p style="margin-top: 12px; font-size: 11px; color: #9ca3af;">Document generated on ${new Date().toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
             </div>
@@ -600,7 +603,7 @@ export default function Billing() {
   const exportInvoicesToCsv = () => {
     const headers = ['Invoice #', 'Patient', 'Service', 'Amount (UGX)', 'Date', 'Due Date', 'Status', 'Description'];
     const rows = filteredInvoices.map((inv) => [
-      escapeCsv(inv.invoiceNumber ?? inv.id),
+      escapeCsv(inv.invoiceNumber || ''),
       escapeCsv(inv.patientName ?? ''),
       escapeCsv(inv.serviceName ?? ''),
       escapeCsv(inv.amount),
@@ -659,7 +662,7 @@ export default function Billing() {
       .map(
         (inv) => `
       <tr>
-        <td>${escapeHtml(inv.invoiceNumber ?? inv.id)}</td>
+        <td>${escapeHtml(inv.invoiceNumber || '')}</td>
         <td>${escapeHtml(inv.patientName ?? '')}</td>
         <td>${escapeHtml(inv.serviceName ?? '')}</td>
         <td>${formatUgx(inv.amount)}</td>
@@ -928,7 +931,9 @@ export default function Billing() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <FileText className="h-4 w-4 text-gray-400 mr-2" />
-                        <div className="text-sm font-medium text-gray-900">{invoice.invoiceNumber ?? invoice.id}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {invoice.invoiceNumber ?? ''}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -1064,7 +1069,9 @@ export default function Billing() {
             <div className="flex items-center justify-between border-b px-6 py-4 sticky top-0 bg-white z-10">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">Invoice Details</h2>
-                <p className="text-sm text-gray-500">Invoice #{selectedInvoice.invoiceNumber ?? selectedInvoice.id}</p>
+              <p className="text-sm text-gray-500">
+                {selectedInvoice.invoiceNumber ? `Invoice #${selectedInvoice.invoiceNumber}` : 'Invoice'}
+              </p>
               </div>
               <div className="flex items-center space-x-2">
                 <button

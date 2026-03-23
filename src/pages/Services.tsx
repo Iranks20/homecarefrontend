@@ -4,6 +4,7 @@ import { Service } from '../types';
 import AddEditServiceModal from '../components/AddEditServiceModal';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import servicesService from '../services/services';
+import { serviceCategoryService } from '../services/serviceCategories';
 import { useNotifications } from '../contexts/NotificationContext';
 
 function formatDuration(minutes: number): string {
@@ -35,12 +36,20 @@ export default function Services() {
     refetch,
   } = useApi(() => servicesService.getServices({ limit: 200 }), []);
 
+  const {
+    data: serviceCategoriesData,
+  } = useApi(() => serviceCategoryService.getCategories({ includeInactive: false }), []);
+
   const servicesList = servicesData?.services ?? [];
 
-  const categories = useMemo(
-    () => Array.from(new Set(servicesList.map((service) => service.category))).sort(),
-    [servicesList]
-  );
+  const categories = useMemo(() => {
+    const fromCategoriesApi =
+      serviceCategoriesData?.map((category) => category.name).filter(Boolean) ?? [];
+    if (fromCategoriesApi.length > 0) {
+      return [...fromCategoriesApi].sort();
+    }
+    return Array.from(new Set(servicesList.map((service) => service.category))).sort();
+  }, [serviceCategoriesData, servicesList]);
 
   const filteredServices = useMemo(() => {
     return servicesList.filter((service) => {

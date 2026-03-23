@@ -298,6 +298,16 @@ export class PatientService {
     );
     return response.data;
   }
+
+  async logPatientCaseVisit(
+    patientId: string,
+    caseId: string
+  ): Promise<PatientCase> {
+    const response = await apiService.post<PatientCase>(
+      API_ENDPOINTS.PATIENTS.CASE_VISITS(patientId, caseId)
+    );
+    return response.data;
+  }
 }
 
 export const patientService = new PatientService();
