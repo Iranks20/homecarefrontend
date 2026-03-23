@@ -1,11 +1,11 @@
 const DEFAULT_API_BASE =
   import.meta.env.MODE === 'production'
-    ? 'homecare-backend-production.up.railway.app/api'
+    ? 'https://homecare-backend-production.up.railway.app/api'
     : 'http://localhost:3007/api';
 const BASE_URL = import.meta.env.VITE_API_URL || DEFAULT_API_BASE;
 const DEFAULT_ORIGIN =
   import.meta.env.MODE === 'production'
-    ? 'homecare-backend-production.up.railway.app'
+    ? 'https://homecare-backend-production.up.railway.app'
     : 'http://localhost:3007';
 
 export const API_CONFIG = {
