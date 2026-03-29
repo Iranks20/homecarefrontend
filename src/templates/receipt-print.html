@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teamwork Physio Receipt</title>
+  <style>
+    :root {
+      --ink: #222;
+      --line: #2f2a2a;
+      --paper: #f4f4f4;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #e9e9e9;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+    }
+
+    .page {
+      width: 1200px;
+      max-width: 100%;
+      min-height: 780px;
+      margin: 0 auto;
+      background: var(--paper);
+      padding: 28px 54px 44px;
+    }
+
+    .receipt {
+      width: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 26px;
+      margin-bottom: 18px;
+    }
+
+    .logo-wrap {
+      flex: 0 0 190px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-top: 6px;
+    }
+
+    .logo-wrap img {
+      width: 160px;
+      height: 160px;
+      object-fit: contain;
+    }
+
+    .org {
+      flex: 1;
+      text-align: center;
+      padding-top: 18px;
+    }
+
+    .org-name {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: 0.2px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .org-line {
+      font-size: 24px;
+      line-height: 1.35;
+      margin-bottom: 2px;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+    }
+
+    .top-meta {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      column-gap: 30px;
+      margin: 6px 8px 28px;
+    }
+
+    .meta-left,
+    .meta-right {
+      font-size: 34px;
+      line-height: 1;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+    }
+
+    .meta-right {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .pill-title {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 210px;
+      padding: 8px 24px 10px;
+      border-radius: 18px;
+      background: #1f1b1c;
+      color: #fff;
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    }
+
+    .rows {
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+      margin-top: 8px;
+    }
+
+    .field-line {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+      font-size: 32px;
+      line-height: 1.15;
+    }
+
+    .field-line.compact {
+      font-size: 31px;
+    }
+
+    .label {
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .dots {
+      flex: 1;
+      border-bottom: 5px dotted var(--line);
+      height: 0.85em;
+      transform: translateY(-3px);
+    }
+
+    .value-line {
+      font-family: "Trebuchet MS", Arial, sans-serif;
+      font-size: 31px;
+      line-height: 1.2;
+      padding-left: 8px;
+      min-height: 1.2em;
+    }
+
+    .double-line {
+      margin-top: -6px;
+    }
+
+    .split-row {
+      display: grid;
+      grid-template-columns: 1.15fr 0.95fr;
+      gap: 34px;
+      align-items: baseline;
+    }
+
+    .amount-row {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-top: 6px;
+      padding-left: 18px;
+    }
+
+    .amount-label {
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .amount-box {
+      width: 405px;
+      max-width: 100%;
+      min-height: 72px;
+      border: 4px solid #4a4343;
+      border-radius: 24px;
+      background: transparent;
+      padding: 10px 22px;
+      font-size: 34px;
+      font-weight: 700;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+    }
+
+    .thanks {
+      margin-top: 8px;
+      margin-left: 210px;
+      font-size: 27px;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+    }
+
+    .no-print {
+      margin: 20px auto;
+      text-align: center;
+    }
+
+    .print-button {
+      padding: 12px 28px;
+      background: #1f1b1c;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .page {
+        margin: 0;
+        width: 100%;
+        min-height: auto;
+        padding: 24px 40px 34px;
+        background: #fff;
+      }
+
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="receipt">
+
+      <div class="header">
+        <div class="logo-wrap">
+          <img src="{{logoUrl}}" alt="Teamwork Physio Logo" />
+        </div>
+
+        <div class="org">
+          <div class="org-name">TEAMWORK PHYSIOTHERAPY CENTRE INTERNATIONAL</div>
+          <div class="org-line">Location off Martyrs Way, Ntinda &nbspP.O.Box 107270, &nbspTel: 0200909453</div>
+          <div class="org-line">internationalphysiocentre@gmail.com &nbspphysio-international.com</div>
+        </div>
+      </div>
+
+      <div class="top-meta">
+        <div class="meta-left">No. {{receiptNumber}}</div>
+        <div class="pill-title">RECEIPT</div>
+        <div class="meta-right">Date.................. {{receiptDate}}</div>
+      </div>
+
+      <div class="rows">
+        <div class="field-line">
+          <span class="label">RECEIVED with thanks from:</span>
+          <span class="dots"></span>
+        </div>
+
+        <div class="value-line">{{payerName}}</div>
+
+        <div class="field-line">
+          <span class="label">The Sum of</span>
+          <span class="dots"></span>
+        </div>
+
+        <div class="value-line">{{amountInWords}}</div>
+
+        <div class="field-line">
+          <span class="label">Being payment of</span>
+          <span class="dots"></span>
+        </div>
+
+        <div class="value-line">{{paymentFor}}</div>
+
+        <div class="split-row">
+          <div class="field-line compact">
+            <span class="label">Cash / Cheque No.</span>
+            <span class="dots">{{cashCheque}}</span>
+          </div>
+
+          <div class="field-line compact">
+            <span class="label">Balance</span>
+            <span class="dots">{{balance}}</span>
+          </div>
+        </div>
+
+        <div class="amount-row">
+          <div class="amount-label">USHS:</div>
+          <div class="amount-box">{{amountPaid}}</div>
+        </div>
+
+        <div class="thanks">With Thanks</div>
+      </div>
+
+    </div>
+  </div>
+  <div class="no-print">
+    <button type="button" onclick="window.print()" class="print-button">Print / Save as PDF</button>
+  </div>
+</body>
+</html>
