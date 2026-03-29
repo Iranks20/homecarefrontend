@@ -1,6 +1,6 @@
 # Teamwork Homecare Frontend
 
-React-based frontend application for the Teamwork Homecare Management System.
+React-based frontend application for the Teamwork Physiotherapy Centre International.
 
 ## 🚀 Quick Start
 
