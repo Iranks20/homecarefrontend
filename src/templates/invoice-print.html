@@ -8,22 +8,26 @@
     :root {
       --page-width: 210mm;
       --page-min-height: 297mm;
-      --ink: #2b2627;
-      --muted: #4c4143;
-      --line: rgba(43, 38, 39, 0.82);
+      --navy: #1a3152;
+      --sage: #6d8f7a;
+      --ink: #1f2933;
+      --muted: #4b5763;
+      --line: rgba(26, 49, 82, 0.35);
       --paper: #ffffff;
-      --grid: rgba(43, 38, 39, 0.72);
-      --radius: 18px;
+      --grid: rgba(26, 49, 82, 0.22);
+      --radius: 12px;
     }
 
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      padding: 24px;
-      background: #f2f2f2;
+      padding: clamp(8px, 2vw, 24px);
+      background: #eef1f0;
       color: var(--ink);
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: clamp(13px, 2.8vw, 15px);
+      line-height: 1.45;
     }
 
     .invoice-page {
@@ -31,146 +35,159 @@
       min-height: var(--page-min-height);
       margin: 0 auto;
       background: var(--paper);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-      padding: 20mm 10mm 14mm;
+      box-shadow: 0 8px 28px rgba(26, 49, 82, 0.12);
+      padding: clamp(12mm, 4vw, 18mm) clamp(8mm, 3vw, 14mm) clamp(10mm, 3vw, 14mm);
       position: relative;
     }
 
-    .content {
-      position: relative;
-      z-index: 1;
+    .doc-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: clamp(12px, 3vw, 20px);
+      padding-bottom: clamp(14px, 3vw, 20px);
+      border-bottom: 3px solid var(--navy);
+      margin-bottom: clamp(14px, 3vw, 22px);
     }
 
-    .company {
-      text-align: center;
-      margin-bottom: 14px;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: clamp(10px, 2.5vw, 16px);
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+
+    .brand img {
+      width: clamp(64px, 18vw, 96px);
+      height: clamp(64px, 18vw, 96px);
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .company-block {
+      min-width: 0;
     }
 
     .company-name {
-      margin: 0;
-      font-size: 25px;
+      margin: 0 0 6px;
+      font-size: clamp(0.85rem, 2.8vw, 1.15rem);
       font-weight: 800;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      line-height: 1.15;
+      color: var(--navy);
+      line-height: 1.2;
     }
 
     .company-meta {
-      margin-top: 8px;
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 12px;
-      line-height: 1.45;
+      font-size: clamp(0.68rem, 2.2vw, 0.8rem);
       color: var(--muted);
+      line-height: 1.5;
     }
 
     .company-meta .row {
       display: flex;
-      justify-content: center;
-      gap: 16px;
       flex-wrap: wrap;
+      gap: 6px 14px;
+    }
+
+    .doc-title-wrap {
+      flex: 0 0 auto;
+      text-align: right;
+      align-self: center;
     }
 
     .invoice-title {
-      width: 210px;
-      margin: 12px auto 18px;
-      background: #221e1f;
+      display: inline-block;
+      margin: 0;
+      background: var(--navy);
       color: #fff;
-      border-radius: 16px;
-      text-align: center;
-      font-size: 28px;
-      line-height: 1;
+      border-radius: var(--radius);
+      font-size: clamp(1rem, 3.5vw, 1.35rem);
       font-weight: 800;
-      letter-spacing: 0.5px;
-      padding: 7px 16px 9px;
+      letter-spacing: 0.06em;
+      padding: 8px 18px;
       text-transform: uppercase;
+      border: 2px solid var(--sage);
     }
 
-    .meta-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 24px;
-      margin: 2px 10px 34px;
-      font-size: 18px;
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: clamp(10px, 2vw, 16px);
+      margin-bottom: clamp(12px, 2.5vw, 18px);
     }
 
-    .field-inline {
+    .meta-item {
       display: flex;
-      align-items: baseline;
-      gap: 0;
+      flex-direction: column;
+      gap: 4px;
       min-width: 0;
-      flex: 1;
     }
 
-    .field-inline.right {
-      justify-content: flex-end;
-      max-width: 340px;
+    .meta-item.full {
+      grid-column: 1 / -1;
     }
 
-    .label {
-      font-weight: 500;
-      white-space: nowrap;
-      font-size: inherit;
+    .meta-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--sage);
     }
 
-    .fill-line {
-      flex: 1;
-      min-width: 140px;
-      border-bottom: 4px dotted var(--line);
-      padding: 0 6px 3px;
-      line-height: 1;
-      min-height: 20px;
-    }
-
-    .field-inline:not(.right) .fill-line {
-      border-bottom-color: transparent;
-      min-width: 110px;
-    }
-
-    .client-row {
-      margin: 0 10px 10px;
-      font-size: 18px;
-    }
-
-    .client-row .fill-line {
-      border-bottom: 4px dotted var(--line);
+    .meta-value {
+      font-size: clamp(0.95rem, 2.6vw, 1.05rem);
+      font-weight: 600;
+      color: var(--ink);
+      padding: 6px 0 4px;
+      border-bottom: 2px dotted var(--line);
+      word-break: break-word;
     }
 
     .invoice-table-wrap {
-      margin-top: 6px;
       border: 2px solid var(--grid);
-      border-radius: 18px;
-      overflow: hidden;
+      border-radius: var(--radius);
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     table {
       width: 100%;
+      min-width: 280px;
       border-collapse: collapse;
       table-layout: fixed;
-      font-size: 15px;
+      font-size: clamp(0.8rem, 2.4vw, 0.95rem);
     }
 
-    .col-qty { width: 15%; }
-    .col-particulars { width: 41%; }
-    .col-rate { width: 22%; }
+    .col-qty { width: 11%; }
+    .col-particulars { width: 46%; }
+    .col-rate { width: 21%; }
     .col-amount { width: 22%; }
 
     thead th {
       text-align: center;
-      padding: 8px 8px 7px;
-      font-size: 17px;
-      font-weight: 500;
-      border-bottom: 2px solid var(--grid);
-      border-right: 2px solid var(--grid);
+      padding: 10px 8px;
+      font-size: clamp(0.72rem, 2.2vw, 0.82rem);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #fff;
+      background: linear-gradient(135deg, var(--navy) 0%, #274a6e 100%);
+      border-right: 1px solid rgba(255,255,255,0.2);
+      border-bottom: none;
     }
 
     thead th:last-child { border-right: none; }
 
     tbody td, tfoot td {
-      height: 46px;
-      padding: 8px 10px;
-      vertical-align: middle;
-      border-right: 2px solid var(--grid);
-      border-bottom: 2px solid var(--grid);
+      padding: 10px 8px;
+      vertical-align: top;
+      border-right: 1px solid var(--grid);
+      border-bottom: 1px solid var(--grid);
+      word-wrap: break-word;
     }
 
     tbody td:last-child,
@@ -178,17 +195,15 @@
       border-right: none;
     }
 
-    tbody tr:last-child td {
-      border-bottom: 2px solid var(--grid);
-    }
-
     .blank-row td {
       color: transparent;
+      height: 36px;
+      padding: 6px 8px;
     }
 
     .num, .money {
       text-align: center;
-      white-space: nowrap;
+      white-space: normal;
     }
 
     .particulars-cell {
@@ -196,63 +211,54 @@
     }
 
     tfoot td {
-      height: 74px;
+      background: #f6f8f7;
+      font-weight: 700;
       border-bottom: none;
     }
 
-    .total-empty {
-      background: #fff;
+    .total-label-cell {
+      text-align: right;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: clamp(0.85rem, 2.5vw, 1rem);
+      color: var(--navy);
+      vertical-align: middle;
     }
 
-    .total-merged {
+    .total-amount-cell {
       text-align: center;
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: 0.2px;
+      font-size: clamp(0.95rem, 2.8vw, 1.15rem);
+      color: var(--navy);
+      vertical-align: middle;
     }
 
-    .bottom-row {
+    .footer-note {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: flex-end;
-      gap: 16px;
-      margin: 8px 12px 0;
-      color: var(--ink);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .bottom-left {
-      display: flex;
-      gap: 38px;
-      align-items: center;
-      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: clamp(14px, 3vw, 20px);
+      font-size: clamp(0.65rem, 2vw, 0.75rem);
+      font-weight: 600;
+      color: var(--muted);
     }
 
     .signature-area {
-      margin: 36px 12px 0;
+      margin-top: clamp(28px, 5vw, 40px);
       display: flex;
+      flex-wrap: wrap;
       align-items: flex-end;
-      gap: 0;
-      font-size: 11px;
+      gap: 8px 12px;
+      font-size: clamp(0.65rem, 2vw, 0.72rem);
       font-weight: 700;
       color: var(--ink);
-      white-space: nowrap;
-    }
-
-    .signature-label {
-      flex: 0 0 auto;
     }
 
     .signature-line {
-      flex: 1;
-      border-bottom: 3px dotted var(--line);
-      height: 14px;
-      min-width: 120px;
-    }
-
-    .signature-caption {
-      flex: 0 0 auto;
+      flex: 1 1 120px;
+      border-bottom: 2px dotted var(--line);
+      min-height: 18px;
     }
 
     .no-print {
@@ -262,9 +268,9 @@
 
     .print-button {
       padding: 12px 28px;
-      background: #221e1f;
+      background: var(--navy);
       color: #fff;
-      border: none;
+      border: 2px solid var(--sage);
       border-radius: 10px;
       font-size: 15px;
       font-weight: 600;
@@ -287,144 +293,122 @@
         min-height: 297mm;
         box-shadow: none;
         margin: 0;
+        padding: 14mm 12mm 12mm;
       }
 
       .no-print { display: none; }
-    }
-
-    @media (max-width: 720px) {
-      body { padding: 8px; }
-      .invoice-page { padding: 16mm 6mm 12mm; }
-      .company-name { font-size: 20px; }
-      .invoice-title { width: 180px; font-size: 24px; }
-      .meta-row { flex-direction: column; gap: 12px; margin-bottom: 18px; }
-      .field-inline.right { justify-content: flex-start; max-width: none; }
-      thead th { font-size: 15px; }
-      table { font-size: 13px; }
-      .total-merged { font-size: 22px; }
-      .bottom-row,
-      .signature-area { font-size: 10px; }
     }
   </style>
 </head>
 <body>
   <div class="invoice-page">
-    <div class="content">
-      <header class="company">
-        <h1 class="company-name">TEAMWORK PHYSIOTHERAPY CENTRE INTERNATIONAL</h1>
-
-        <div class="company-meta">
-          <div class="row">
-            <span>Location off Martyrs Way, Ntinda</span>
-            <span>P.O.Box 107270,</span>
-            <span>Tel: 0200909453</span>
+    <header class="doc-header">
+      <div class="brand">
+        <img src="{{logoUrl}}" alt="" width="96" height="96" />
+        <div class="company-block">
+          <h1 class="company-name">Teamwork Physiotherapy Centre International</h1>
+          <div class="company-meta">
+            <div class="row">
+              <span>Location off Martyrs Way, Ntinda</span>
+              <span>P.O. Box 107270</span>
+              <span>Tel: 0200909453</span>
+            </div>
+            <div class="row">
+              <span>internationalphysiocentre@gmail.com</span>
+              <span>physio-international.com</span>
+            </div>
           </div>
-          <div class="row">
-            <span>internationalphysiocentre@gmail.com</span>
-            <span>physio-international.com</span>
-          </div>
         </div>
-      </header>
-
-      <div class="invoice-title">Invoice</div>
-
-      <section class="meta-row">
-        <div class="field-inline">
-          <span class="label">No.</span>
-          <span class="fill-line">{{invoiceNumber}}</span>
-        </div>
-        <div class="field-inline right">
-          <span class="label">Date</span>
-          <span class="fill-line">{{invoiceDate}}</span>
-        </div>
-      </section>
-
-      <section class="client-row">
-        <div class="field-inline">
-          <span class="label">M/S.</span>
-          <span class="fill-line">{{clientName}}</span>
-        </div>
-      </section>
-
-      <div class="invoice-table-wrap">
-        <table aria-label="Invoice items">
-          <thead>
-            <tr>
-              <th class="col-qty">Qty</th>
-              <th class="col-particulars">Particulars</th>
-              <th class="col-rate">Rate</th>
-              <th class="col-amount">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="item-row">
-              <td class="num">{{items0qty}}</td>
-              <td class="particulars-cell">{{items0description}}</td>
-              <td class="money">{{items0rate}}</td>
-              <td class="money">{{items0amount}}</td>
-            </tr>
-            <tr class="item-row">
-              <td class="num">{{items1qty}}</td>
-              <td class="particulars-cell">{{items1description}}</td>
-              <td class="money">{{items1rate}}</td>
-              <td class="money">{{items1amount}}</td>
-            </tr>
-            <tr class="item-row">
-              <td class="num">{{items2qty}}</td>
-              <td class="particulars-cell">{{items2description}}</td>
-              <td class="money">{{items2rate}}</td>
-              <td class="money">{{items2amount}}</td>
-            </tr>
-            <tr class="item-row">
-              <td class="num">{{items3qty}}</td>
-              <td class="particulars-cell">{{items3description}}</td>
-              <td class="money">{{items3rate}}</td>
-              <td class="money">{{items3amount}}</td>
-            </tr>
-            <tr class="item-row">
-              <td class="num">{{items4qty}}</td>
-              <td class="particulars-cell">{{items4description}}</td>
-              <td class="money">{{items4rate}}</td>
-              <td class="money">{{items4amount}}</td>
-            </tr>
-            <tr class="item-row">
-              <td class="num">{{items5qty}}</td>
-              <td class="particulars-cell">{{items5description}}</td>
-              <td class="money">{{items5rate}}</td>
-              <td class="money">{{items5amount}}</td>
-            </tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-            <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td class="total-empty"></td>
-              <td class="total-merged" colspan="3">Total</td>
-            </tr>
-          </tfoot>
-        </table>
       </div>
-
-      <div class="bottom-row">
-        <div class="bottom-left">
-          <span>E.&amp;O.E</span>
-          <span>All accounts are due on demand</span>
-        </div>
-        <div>{{totalAmount}}</div>
+      <div class="doc-title-wrap">
+        <p class="invoice-title">Invoice</p>
       </div>
+    </header>
 
-      <div class="signature-area">
-        <span class="signature-label">Signature</span>
-        <span class="signature-line"></span>
-        <span class="signature-caption">for and on behalf of Teamwork Physio International</span>
+    <section class="meta-grid" aria-label="Invoice details">
+      <div class="meta-item">
+        <span class="meta-label">No.</span>
+        <span class="meta-value">{{invoiceNumber}}</span>
       </div>
+      <div class="meta-item">
+        <span class="meta-label">Date</span>
+        <span class="meta-value">{{invoiceDate}}</span>
+      </div>
+      <div class="meta-item full">
+        <span class="meta-label">M/S.</span>
+        <span class="meta-value">{{clientName}}</span>
+      </div>
+    </section>
+
+    <div class="invoice-table-wrap">
+      <table aria-label="Invoice items">
+        <thead>
+          <tr>
+            <th class="col-qty">Qty</th>
+            <th class="col-particulars">Particulars</th>
+            <th class="col-rate">Rate</th>
+            <th class="col-amount">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="item-row">
+            <td class="num">{{items0qty}}</td>
+            <td class="particulars-cell">{{items0description}}</td>
+            <td class="money">{{items0rate}}</td>
+            <td class="money">{{items0amount}}</td>
+          </tr>
+          <tr class="item-row">
+            <td class="num">{{items1qty}}</td>
+            <td class="particulars-cell">{{items1description}}</td>
+            <td class="money">{{items1rate}}</td>
+            <td class="money">{{items1amount}}</td>
+          </tr>
+          <tr class="item-row">
+            <td class="num">{{items2qty}}</td>
+            <td class="particulars-cell">{{items2description}}</td>
+            <td class="money">{{items2rate}}</td>
+            <td class="money">{{items2amount}}</td>
+          </tr>
+          <tr class="item-row">
+            <td class="num">{{items3qty}}</td>
+            <td class="particulars-cell">{{items3description}}</td>
+            <td class="money">{{items3rate}}</td>
+            <td class="money">{{items3amount}}</td>
+          </tr>
+          <tr class="item-row">
+            <td class="num">{{items4qty}}</td>
+            <td class="particulars-cell">{{items4description}}</td>
+            <td class="money">{{items4rate}}</td>
+            <td class="money">{{items4amount}}</td>
+          </tr>
+          <tr class="item-row">
+            <td class="num">{{items5qty}}</td>
+            <td class="particulars-cell">{{items5description}}</td>
+            <td class="money">{{items5rate}}</td>
+            <td class="money">{{items5amount}}</td>
+          </tr>
+          <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+          <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+          <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td class="total-label-cell" colspan="3">Total</td>
+            <td class="total-amount-cell money">{{totalAmount}}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="footer-note">
+      <span>E.&amp;O.E.</span>
+      <span>All accounts are due on demand</span>
+    </div>
+
+    <div class="signature-area">
+      <span>Signature</span>
+      <span class="signature-line"></span>
+      <span>for and on behalf of Teamwork Physiotherapy Centre International</span>
     </div>
   </div>
   <div class="no-print">

@@ -1,7 +1,7 @@
 import type { Invoice } from '../types';
 import invoiceTemplate from '../templates/invoice-print.html?raw';
 import receiptTemplate from '../templates/receipt-print.html?raw';
-import { getLogoUrl } from './logo';
+import invoiceLogoHref from '../templates/invoice_logo.png?url';
 
 const formatUgx = (n: number) => `${Number(n).toLocaleString()} UGX`;
 
@@ -11,6 +11,20 @@ function escapeHtml(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function imgSrcAttr(url: string): string {
+  return escapeHtml(resolveBillingAssetUrl(url));
+}
+
+function resolveBillingAssetUrl(href: string): string {
+  if (/^https?:\/\//i.test(href)) {
+    return href;
+  }
+  if (typeof window !== 'undefined' && href.startsWith('/')) {
+    return `${window.location.origin}${href}`;
+  }
+  return href;
 }
 
 function formatDocumentDate(d: string | Date): string {
@@ -47,9 +61,10 @@ export function buildInvoicePrintHtml(invoice: Invoice): string {
   let html = invoiceTemplate;
   const items = buildLineItems(invoice);
   const vars: Record<string, string> = {
-    invoiceNumber: escapeHtml(invoice.invoiceNumber || ''),
+    logoUrl: imgSrcAttr(invoiceLogoHref),
+    invoiceNumber: escapeHtml(invoice.invoiceNumber || '—'),
     invoiceDate: escapeHtml(formatDocumentDate(invoice.date)),
-    clientName: escapeHtml(invoice.patientName || ''),
+    clientName: escapeHtml(invoice.patientName || '—'),
     totalAmount: escapeHtml(formatUgx(invoice.amount)),
   };
   items.forEach((row, i) => {
@@ -68,10 +83,10 @@ export function buildReceiptPrintHtml(invoice: Invoice): string {
   let html = receiptTemplate;
   const paymentFor = [invoice.serviceName, invoice.description].filter(Boolean).join(' — ') || 'Services rendered';
   const vars: Record<string, string> = {
-    logoUrl: escapeHtml(getLogoUrl()),
-    receiptNumber: escapeHtml(invoice.invoiceNumber || ''),
-    receiptDate: escapeHtml(formatDocumentDate(new Date())),
-    payerName: escapeHtml(invoice.patientName || ''),
+    logoUrl: imgSrcAttr(invoiceLogoHref),
+    receiptNumber: escapeHtml(invoice.invoiceNumber || '—'),
+    receiptDate: escapeHtml(formatDocumentDate(invoice.date)),
+    payerName: escapeHtml(invoice.patientName || '—'),
     amountInWords: escapeHtml(ugxAmountCaption(invoice.amount)),
     paymentFor: escapeHtml(paymentFor),
     cashCheque: escapeHtml('Cash'),
