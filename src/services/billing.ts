@@ -1,6 +1,6 @@
 import { apiService } from './api';
 import { API_ENDPOINTS } from '../config/api';
-import { Invoice, Payment, PaginatedResponse, BillingSummary } from '../types';
+import { Invoice, InvoiceLineItem, Payment, PaginatedResponse, BillingSummary } from '../types';
 
 export interface InvoiceQueryParams {
   patientId?: string;
@@ -46,18 +46,53 @@ export interface GenerateInvoiceData {
   notes?: string;
 }
 
+export interface InvoiceLinePayload {
+  serviceId: string;
+  quantity?: number;
+  unitPrice?: number;
+  description?: string;
+  procedureCode?: string | null;
+}
+
+export interface InvoiceSavePayload {
+  patientId: string;
+  date: string;
+  dueDate: string;
+  description: string;
+  status: Invoice['status'];
+  lines: InvoiceLinePayload[];
+}
+
 type InvoiceApi = Invoice & {
-  patient?: { id: string; name: string; email: string } | null;
+  patient?: { id: string; name: string; email: string; title?: string | null } | null;
   service?: { id: string; name: string } | null;
+  lineItems?: InvoiceLineItem[];
 };
+
+function normalizeLineItem(li: Partial<InvoiceLineItem> & { id?: string }): InvoiceLineItem {
+  return {
+    id: String(li.id ?? ''),
+    serviceId: String(li.serviceId ?? ''),
+    serviceName: li.serviceName != null ? String(li.serviceName) : undefined,
+    procedureCode: li.procedureCode != null ? String(li.procedureCode) : null,
+    description: String(li.description ?? ''),
+    quantity: Number(li.quantity ?? 1),
+    unitPrice: Number(li.unitPrice ?? 0),
+    lineAmount: Number(li.lineAmount ?? 0),
+    sortOrder: Number(li.sortOrder ?? 0),
+  };
+}
 
 function normalizeInvoice(invoice: InvoiceApi): Invoice {
   const status = invoice.status?.toLowerCase() as Invoice['status'] | undefined;
+  const rawLines = invoice.lineItems;
+  const lineItems = Array.isArray(rawLines) ? rawLines.map((li) => normalizeLineItem(li)) : undefined;
   return {
     id: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
     patientId: invoice.patientId,
     patientName: invoice.patientName ?? invoice.patient?.name ?? 'Unknown Patient',
+    patientTitle: invoice.patientTitle ?? invoice.patient?.title ?? undefined,
     serviceId: invoice.serviceId,
     serviceName: invoice.serviceName ?? invoice.service?.name ?? 'Unknown Service',
     amount: invoice.amount,
@@ -67,6 +102,7 @@ function normalizeInvoice(invoice: InvoiceApi): Invoice {
     description: invoice.description,
     archivedAt: invoice.archivedAt ?? undefined,
     createdAt: invoice.createdAt,
+    lineItems,
   };
 }
 
@@ -106,13 +142,28 @@ export class BillingService {
     return normalizeInvoice(response.data);
   }
 
-  async createInvoice(data: Omit<Invoice, 'id'>): Promise<Invoice> {
-    const response = await apiService.post<InvoiceApi>(API_ENDPOINTS.BILLING.INVOICES, data);
+  async createInvoice(data: InvoiceSavePayload): Promise<Invoice> {
+    const body = {
+      patientId: data.patientId,
+      date: data.date,
+      dueDate: data.dueDate,
+      description: data.description,
+      status: String(data.status).toUpperCase(),
+      lines: data.lines,
+    };
+    const response = await apiService.post<InvoiceApi>(API_ENDPOINTS.BILLING.INVOICES, body);
     return normalizeInvoice(response.data);
   }
 
-  async updateInvoice(id: string, data: Partial<Omit<Invoice, 'id'>>): Promise<Invoice> {
-    const response = await apiService.put<InvoiceApi>(API_ENDPOINTS.BILLING.INVOICE_BY_ID(id), data);
+  async updateInvoice(id: string, data: Partial<InvoiceSavePayload>): Promise<Invoice> {
+    const body: Record<string, unknown> = {};
+    if (data.patientId !== undefined) body.patientId = data.patientId;
+    if (data.date !== undefined) body.date = data.date;
+    if (data.dueDate !== undefined) body.dueDate = data.dueDate;
+    if (data.description !== undefined) body.description = data.description;
+    if (data.status !== undefined) body.status = String(data.status).toUpperCase();
+    if (data.lines !== undefined) body.lines = data.lines;
+    const response = await apiService.put<InvoiceApi>(API_ENDPOINTS.BILLING.INVOICE_BY_ID(id), body);
     return normalizeInvoice(response.data);
   }
 

@@ -335,8 +335,16 @@
         <span class="meta-value">{{invoiceDate}}</span>
       </div>
       <div class="meta-item full">
-        <span class="meta-label">M/S.</span>
-        <span class="meta-value">{{clientName}}</span>
+        <div class="bill-to-row">
+          <div class="meta-item bill-to-title-field">
+            <span class="meta-label">Title</span>
+            <span class="meta-value">{{clientTitle}}</span>
+          </div>
+          <div class="meta-item bill-to-name-field">
+            <span class="meta-label">M/S.</span>
+            <span class="meta-value">{{clientName}}</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -351,45 +359,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr class="item-row">
-            <td class="num">{{items0qty}}</td>
-            <td class="particulars-cell">{{items0description}}</td>
-            <td class="money">{{items0rate}}</td>
-            <td class="money">{{items0amount}}</td>
-          </tr>
-          <tr class="item-row">
-            <td class="num">{{items1qty}}</td>
-            <td class="particulars-cell">{{items1description}}</td>
-            <td class="money">{{items1rate}}</td>
-            <td class="money">{{items1amount}}</td>
-          </tr>
-          <tr class="item-row">
-            <td class="num">{{items2qty}}</td>
-            <td class="particulars-cell">{{items2description}}</td>
-            <td class="money">{{items2rate}}</td>
-            <td class="money">{{items2amount}}</td>
-          </tr>
-          <tr class="item-row">
-            <td class="num">{{items3qty}}</td>
-            <td class="particulars-cell">{{items3description}}</td>
-            <td class="money">{{items3rate}}</td>
-            <td class="money">{{items3amount}}</td>
-          </tr>
-          <tr class="item-row">
-            <td class="num">{{items4qty}}</td>
-            <td class="particulars-cell">{{items4description}}</td>
-            <td class="money">{{items4rate}}</td>
-            <td class="money">{{items4amount}}</td>
-          </tr>
-          <tr class="item-row">
-            <td class="num">{{items5qty}}</td>
-            <td class="particulars-cell">{{items5description}}</td>
-            <td class="money">{{items5rate}}</td>
-            <td class="money">{{items5amount}}</td>
-          </tr>
-          <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-          <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-          <tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+          {{lineItemsBody}}
         </tbody>
         <tfoot>
           <tr>

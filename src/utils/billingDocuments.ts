@@ -1,4 +1,4 @@
-import type { Invoice } from '../types';
+import type { Invoice, InvoiceLineItem } from '../types';
 import invoiceTemplate from '../templates/invoice-print.html?raw';
 import receiptTemplate from '../templates/receipt-print.html?raw';
 import invoiceLogoHref from '../templates/invoice_logo.png?url';
@@ -39,40 +39,79 @@ function ugxAmountCaption(n: number): string {
   return `Uganda Shillings ${Number(n).toLocaleString()} only`;
 }
 
-type LineItem = { qty: string; description: string; rate: string; amount: string };
+function particularsForLine(li: InvoiceLineItem): string {
+  const code = li.procedureCode?.trim();
+  const name = li.serviceName?.trim();
+  const desc = (li.description || '').trim();
+  let raw = '';
+  if (code) {
+    raw += `[${code}] `;
+  }
+  if (name) {
+    raw += `${name}`;
+    if (desc && desc !== name) {
+      raw += `: ${desc}`;
+    }
+  } else if (desc) {
+    raw += desc;
+  } else {
+    raw = '—';
+  }
+  return escapeHtml(raw);
+}
 
-function buildLineItems(invoice: Invoice): LineItem[] {
+function buildLineRowsFromInvoice(invoice: Invoice): string {
+  const items = invoice.lineItems?.length
+    ? invoice.lineItems
+    : [];
+  if (items.length > 0) {
+    return items
+      .map((li) => {
+        const qty = String(li.quantity);
+        const rate = formatUgx(li.unitPrice);
+        const amt = formatUgx(li.lineAmount);
+        return `<tr class="item-row"><td class="num">${escapeHtml(qty)}</td><td class="particulars-cell">${particularsForLine(li)}</td><td class="money">${escapeHtml(rate)}</td><td class="money">${escapeHtml(amt)}</td></tr>`;
+      })
+      .join('');
+  }
   const particulars = [invoice.description, invoice.serviceName ? `Service: ${invoice.serviceName}` : '']
     .filter(Boolean)
     .join(' — ');
   const rate = formatUgx(invoice.amount);
   const amount = formatUgx(invoice.amount);
-  const rows: LineItem[] = Array.from({ length: 6 }, () => ({
-    qty: '',
-    description: '',
-    rate: '',
-    amount: '',
-  }));
-  rows[0] = { qty: '1', description: particulars || '—', rate, amount };
-  return rows;
+  return `<tr class="item-row"><td class="num">1</td><td class="particulars-cell">${escapeHtml(particulars || '—')}</td><td class="money">${escapeHtml(rate)}</td><td class="money">${escapeHtml(amount)}</td></tr>`;
+}
+
+function blankRows(count: number): string {
+  return Array.from({ length: count }, () => '<tr class="blank-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>').join('');
+}
+
+function paymentForSummary(invoice: Invoice): string {
+  if (invoice.lineItems?.length) {
+    const parts = invoice.lineItems.map((li) => li.description || li.serviceName || 'Item').filter(Boolean);
+    const unique = [...new Set(parts)];
+    if (unique.length <= 3) {
+      return unique.join('; ');
+    }
+    return `${unique.slice(0, 2).join('; ')}; and ${unique.length - 2} other service(s)`;
+  }
+  return [invoice.serviceName, invoice.description].filter(Boolean).join(' — ') || 'Services rendered';
 }
 
 export function buildInvoicePrintHtml(invoice: Invoice): string {
   let html = invoiceTemplate;
-  const items = buildLineItems(invoice);
+  const dataRows = buildLineRowsFromInvoice(invoice);
+  const lineCount = invoice.lineItems?.length ? invoice.lineItems.length : 1;
+  const pad = Math.max(0, 6 - lineCount);
   const vars: Record<string, string> = {
+    lineItemsBody: dataRows + blankRows(pad),
     logoUrl: imgSrcAttr(invoiceLogoHref),
     invoiceNumber: escapeHtml(invoice.invoiceNumber || '—'),
     invoiceDate: escapeHtml(formatDocumentDate(invoice.date)),
     clientName: escapeHtml(invoice.patientName || '—'),
+    clientTitle: escapeHtml((invoice.patientTitle ?? '').trim() || 'Mr'),
     totalAmount: escapeHtml(formatUgx(invoice.amount)),
   };
-  items.forEach((row, i) => {
-    vars[`items${i}qty`] = escapeHtml(row.qty);
-    vars[`items${i}description`] = escapeHtml(row.description);
-    vars[`items${i}rate`] = escapeHtml(row.rate);
-    vars[`items${i}amount`] = escapeHtml(row.amount);
-  });
   Object.entries(vars).forEach(([key, value]) => {
     html = html.split(`{{${key}}}`).join(value);
   });
@@ -81,14 +120,13 @@ export function buildInvoicePrintHtml(invoice: Invoice): string {
 
 export function buildReceiptPrintHtml(invoice: Invoice): string {
   let html = receiptTemplate;
-  const paymentFor = [invoice.serviceName, invoice.description].filter(Boolean).join(' — ') || 'Services rendered';
   const vars: Record<string, string> = {
     logoUrl: imgSrcAttr(invoiceLogoHref),
     receiptNumber: escapeHtml(invoice.invoiceNumber || '—'),
     receiptDate: escapeHtml(formatDocumentDate(invoice.date)),
     payerName: escapeHtml(invoice.patientName || '—'),
     amountInWords: escapeHtml(ugxAmountCaption(invoice.amount)),
-    paymentFor: escapeHtml(paymentFor),
+    paymentFor: escapeHtml(paymentForSummary(invoice)),
     cashCheque: escapeHtml('Cash'),
     balance: escapeHtml('—'),
     amountPaid: escapeHtml(formatUgx(invoice.amount)),

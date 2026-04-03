@@ -165,12 +165,25 @@ export interface Appointment {
   notes?: string;
 }
 
+export interface InvoiceLineItem {
+  id: string;
+  serviceId: string;
+  serviceName?: string;
+  procedureCode?: string | null;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineAmount: number;
+  sortOrder: number;
+}
+
 export interface Invoice {
   id: string;
   invoiceNumber?: string;
   patientId: string;
   patientName: string;
-  serviceId: string;
+  patientTitle?: string;
+  serviceId?: string;
   serviceName: string;
   amount: number;
   date: string;
@@ -179,6 +192,7 @@ export interface Invoice {
   description: string;
   archivedAt?: string | null;
   createdAt?: string;
+  lineItems?: InvoiceLineItem[];
 }
 
 export interface BillingSummary {

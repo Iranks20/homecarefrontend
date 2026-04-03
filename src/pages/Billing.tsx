@@ -21,7 +21,7 @@ import {
 import { toast } from 'react-toastify';
 import { Invoice } from '../types';
 import AddEditInvoiceModal from '../components/AddEditInvoiceModal';
-import { billingService } from '../services/billing';
+import { billingService, type InvoiceSavePayload } from '../services/billing';
 import { patientService } from '../services/patients';
 import servicesService from '../services/services';
 import { useApi, useApiMutation } from '../hooks/useApi';
@@ -98,19 +98,28 @@ export default function Billing() {
   const summary = summaryData ?? null;
 
   const createInvoiceMutation = useApiMutation(billingService.createInvoice.bind(billingService));
-  const updateInvoiceMutation = useApiMutation(
-    (params: { id: string; data: Partial<Invoice> }) => billingService.updateInvoice(params.id, params.data)
+  const updateInvoiceMutation = useApiMutation((params: { id: string; data: InvoiceSavePayload }) =>
+    billingService.updateInvoice(params.id, params.data)
   );
   const archiveInvoiceMutation = useApiMutation(billingService.archiveInvoice.bind(billingService));
   const deleteInvoiceMutation = useApiMutation(billingService.deleteInvoice.bind(billingService));
 
   const filteredInvoices = useMemo(() => {
+    const q = searchTerm.toLowerCase();
     return invoices.filter((invoice) => {
+      const lineMatch = (invoice.lineItems ?? []).some(
+        (li) =>
+          (li.description?.toLowerCase() || '').includes(q) ||
+          (li.serviceName?.toLowerCase() || '').includes(q) ||
+          (li.procedureCode?.toLowerCase() || '').includes(q)
+      );
       const matchesSearch =
-        (invoice.patientName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (invoice.serviceName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (invoice.invoiceNumber?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (invoice.id?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        (invoice.patientName?.toLowerCase() || '').includes(q) ||
+        (invoice.serviceName?.toLowerCase() || '').includes(q) ||
+        (invoice.invoiceNumber?.toLowerCase() || '').includes(q) ||
+        (invoice.id?.toLowerCase() || '').includes(q) ||
+        (invoice.description?.toLowerCase() || '').includes(q) ||
+        lineMatch;
 
       let matchesDate = true;
       if (dateFilter !== 'all') {
@@ -136,13 +145,14 @@ export default function Billing() {
     .filter((invoice) => invoice.status === 'overdue')
     .reduce((sum, invoice) => sum + invoice.amount, 0);
 
-  const handleAddInvoice = async (invoiceData: Omit<Invoice, 'id'>) => {
+  const handleAddInvoice = async (invoiceData: InvoiceSavePayload) => {
     try {
+      const patientName = patients.find((p) => p.id === invoiceData.patientId)?.name ?? 'Patient';
       await createInvoiceMutation.mutate(invoiceData);
-      toast.success(`Invoice for ${invoiceData.patientName} has been created successfully.`);
+      toast.success(`Invoice for ${patientName} has been created successfully.`);
       addNotification({
         title: 'Invoice created',
-        message: `${invoiceData.patientName}'s invoice has been created.`,
+        message: `${patientName}'s invoice has been created.`,
         type: 'success',
         userId: 'system',
         priority: 'medium',
@@ -164,14 +174,15 @@ export default function Billing() {
     }
   };
 
-  const handleEditInvoice = async (invoiceData: Omit<Invoice, 'id'>) => {
+  const handleEditInvoice = async (invoiceData: InvoiceSavePayload) => {
     if (!selectedInvoice) return;
     try {
+      const patientName = patients.find((p) => p.id === invoiceData.patientId)?.name ?? 'Patient';
       await updateInvoiceMutation.mutate({ id: selectedInvoice.id, data: invoiceData });
-      toast.success(`Invoice for ${invoiceData.patientName} has been updated successfully.`);
+      toast.success(`Invoice for ${patientName} has been updated successfully.`);
       addNotification({
         title: 'Invoice updated',
-        message: `${invoiceData.patientName}'s invoice has been updated.`,
+        message: `${patientName}'s invoice has been updated.`,
         type: 'success',
         userId: 'system',
         priority: 'medium',
@@ -823,19 +834,51 @@ export default function Billing() {
                 </div>
               </div>
 
-              {/* Service Details */}
               <div className="border-t pt-6">
-                <h3 className="text-sm font-medium text-gray-500 mb-4">Service Details</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-semibold text-gray-900">{selectedInvoice.serviceName}</p>
-                      <p className="text-sm text-gray-600 mt-1">{selectedInvoice.description}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900">{formatUgx(selectedInvoice.amount)}</p>
-                    </div>
-                  </div>
+                <h3 className="text-sm font-medium text-gray-500 mb-4">Charges</h3>
+                <p className="text-sm text-gray-600 mb-3">{selectedInvoice.description}</p>
+                <div className="overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50 text-left text-gray-600">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Qty</th>
+                        <th className="px-3 py-2 font-medium">Service / description</th>
+                        <th className="px-3 py-2 font-medium text-right">Unit</th>
+                        <th className="px-3 py-2 font-medium text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {(selectedInvoice.lineItems?.length
+                        ? selectedInvoice.lineItems
+                        : [
+                            {
+                              id: 'legacy',
+                              serviceId: selectedInvoice.serviceId ?? '',
+                              serviceName: selectedInvoice.serviceName,
+                              description: selectedInvoice.description,
+                              quantity: 1,
+                              unitPrice: selectedInvoice.amount,
+                              lineAmount: selectedInvoice.amount,
+                              sortOrder: 0,
+                            },
+                          ]
+                      ).map((li) => (
+                        <tr key={li.id}>
+                          <td className="px-3 py-2 text-gray-900">{li.quantity}</td>
+                          <td className="px-3 py-2 text-gray-900">
+                            <div className="font-medium">{li.serviceName ?? '—'}</div>
+                            {li.description && li.description !== li.serviceName && (
+                              <div className="text-gray-600 text-xs mt-0.5">{li.description}</div>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-700">{formatUgx(li.unitPrice)}</td>
+                          <td className="px-3 py-2 text-right font-medium text-gray-900">
+                            {formatUgx(li.lineAmount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
