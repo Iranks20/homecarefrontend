@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { User, Bell, Shield, Database, Loader2, GraduationCap, Plus, Edit, Trash2, X, Tag } from 'lucide-react';
+import { User, Bell, Shield, Database, Loader2, GraduationCap, Plus, Edit, Trash2, X, Tag, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import { settingsService } from '../services/settings';
 import { specializationService, type Specialization, type CreateSpecializationData } from '../services/specializations';
 import { serviceCategoryService, type ServiceCategory, type CreateServiceCategoryData } from '../services/serviceCategories';
+import { paymentMethodService, type PaymentMethod, type CreatePaymentMethodData } from '../services/paymentMethods';
 import servicesService from '../services/services';
 import { NotificationSettings, SystemSettings } from '../types';
 import { toast } from 'react-toastify';
@@ -59,7 +60,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<
-    'profile' | 'notifications' | 'security' | 'system' | 'specializations' | 'serviceCategories'
+    'profile' | 'notifications' | 'security' | 'system' | 'specializations' | 'serviceCategories' | 'paymentMethods'
   >('profile');
 
   const { user, updateProfile, changePassword } = useAuth();
@@ -361,6 +362,7 @@ export default function Settings() {
               { key: 'security', label: 'Security', icon: Shield },
               { key: 'system', label: 'System', icon: Database, adminOnly: true },
               { key: 'serviceCategories', label: 'Service Categories', icon: Tag, adminOnly: true },
+              { key: 'paymentMethods', label: 'Payment Methods', icon: CreditCard, adminOnly: true },
               { key: 'specializations', label: 'Specializations', icon: GraduationCap, adminOnly: true },
             ]
               .filter((tab) => !tab.adminOnly || user?.role === 'admin')
@@ -783,6 +785,7 @@ export default function Settings() {
 
           {activeTab === 'specializations' && user?.role === 'admin' && <SpecializationsTab />}
           {activeTab === 'serviceCategories' && user?.role === 'admin' && <ServiceCategoriesTab />}
+          {activeTab === 'paymentMethods' && user?.role === 'admin' && <PaymentMethodsTab />}
         </div>
       </div>
     </div>
@@ -1325,6 +1328,258 @@ function ServiceCategoriesTab() {
                   onClick={() => {
                     setIsAddModalOpen(false);
                     setEditingCategory(null);
+                  }}
+                  className="btn-outline"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="btn-primary"
+                  disabled={
+                    !formData.name ||
+                    createMutation.loading ||
+                    updateMutation.loading
+                  }
+                >
+                  {createMutation.loading || updateMutation.loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 inline animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaymentMethodsTab() {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
+  const [formData, setFormData] = useState<CreatePaymentMethodData>({
+    name: '',
+    description: '',
+    isActive: true,
+    displayOrder: 0,
+  });
+
+  const {
+    data: methods,
+    loading,
+    error,
+    refetch,
+  } = useApi(
+    () =>
+      paymentMethodService.getPaymentMethods({
+        includeInactive: true,
+      }),
+    []
+  );
+
+  const createMutation = useApiMutation(paymentMethodService.createPaymentMethod.bind(paymentMethodService));
+  const updateMutation = useApiMutation(
+    ({ id, data }: { id: string; data: Partial<CreatePaymentMethodData> }) =>
+      paymentMethodService.updatePaymentMethod(id, data)
+  );
+  const deleteMutation = useApiMutation(paymentMethodService.deletePaymentMethod.bind(paymentMethodService));
+
+  const handleAdd = () => {
+    setFormData({
+      name: '',
+      description: '',
+      isActive: true,
+      displayOrder: 0,
+    });
+    setEditingMethod(null);
+    setIsAddModalOpen(true);
+  };
+
+  const handleEdit = (method: PaymentMethod) => {
+    setFormData({
+      name: method.name,
+      description: method.description ?? '',
+      isActive: method.isActive,
+      displayOrder: method.displayOrder,
+    });
+    setEditingMethod(method);
+    setIsAddModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editingMethod) {
+        await updateMutation.mutate({
+          id: editingMethod.id,
+          data: formData,
+        });
+        toast.success('Payment method updated successfully');
+      } else {
+        await createMutation.mutate(formData);
+        toast.success('Payment method created successfully');
+      }
+      setIsAddModalOpen(false);
+      setEditingMethod(null);
+      await refetch();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to save payment method');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this payment method?')) return;
+    try {
+      await deleteMutation.mutate(id);
+      toast.success('Payment method deleted successfully');
+      await refetch();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to delete payment method');
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">Payment Methods Management</h2>
+          <p className="text-sm text-gray-600 mt-1">Manage available payment methods across the system</p>
+        </div>
+        <button onClick={handleAdd} className="btn-primary inline-flex items-center">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Payment Method
+        </button>
+      </div>
+
+      {loading && (
+        <div className="py-8 text-center text-sm text-gray-500">Loading payment methods...</div>
+      )}
+
+      {error && !loading && (
+        <div className="py-8 text-center text-sm text-red-500">
+          Unable to load payment methods. Please try again later.
+        </div>
+      )}
+
+      {!loading && !error && (!methods || methods.length === 0) && (
+        <div className="py-8 text-center text-sm text-gray-500">No payment methods found.</div>
+      )}
+
+      {!loading && !error && methods && methods.length > 0 && (
+        <div className="space-y-2">
+          {methods.map((method) => (
+            <div
+              key={method.id}
+              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-gray-900">{method.name}</h3>
+                  {!method.isActive && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                      Inactive
+                    </span>
+                  )}
+                </div>
+                {method.description && (
+                  <p className="text-sm text-gray-600 mt-1">{method.description}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">Display order: {method.displayOrder}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleEdit(method)}
+                  className="inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(method.id)}
+                  className="inline-flex items-center justify-center rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingMethod ? 'Edit Payment Method' : 'Add Payment Method'}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setEditingMethod(null);
+                }}
+                className="p-1 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-4 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="input-field"
+                  placeholder="Enter payment method name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="input-field"
+                  rows={3}
+                  placeholder="Optional description"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+                  <input
+                    type="number"
+                    value={formData.displayOrder}
+                    onChange={(e) =>
+                      setFormData({ ...formData, displayOrder: Number(e.target.value) || 0 })
+                    }
+                    className="input-field"
+                    min="0"
+                  />
+                </div>
+                <div className="flex items-center pt-6">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.isActive ?? true}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Active</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setEditingMethod(null);
                   }}
                   className="btn-outline"
                 >

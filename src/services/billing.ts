@@ -27,6 +27,7 @@ export interface PaymentQueryParams {
 
 export interface ProcessPaymentData {
   invoiceId: string;
+  patientId: string;
   amount: number;
   method: Payment['method'];
   transactionId?: string;
@@ -61,6 +62,7 @@ export interface InvoiceSavePayload {
   description: string;
   status: Invoice['status'];
   lines: InvoiceLinePayload[];
+  paymentMethod?: string;
 }
 
 type InvoiceApi = Invoice & {
@@ -99,6 +101,7 @@ function normalizeInvoice(invoice: InvoiceApi): Invoice {
     date: invoice.date,
     dueDate: invoice.dueDate,
     status: status ?? 'pending',
+    paymentMethod: invoice.paymentMethod != null ? String(invoice.paymentMethod) : undefined,
     description: invoice.description,
     archivedAt: invoice.archivedAt ?? undefined,
     createdAt: invoice.createdAt,
@@ -194,7 +197,14 @@ export class BillingService {
   }
 
   async processPayment(data: ProcessPaymentData): Promise<Payment> {
-    const response = await apiService.post<Payment>(API_ENDPOINTS.BILLING.PROCESS_PAYMENT, data);
+    const response = await apiService.post<Payment>(API_ENDPOINTS.BILLING.PROCESS_PAYMENT, {
+      invoiceId: data.invoiceId,
+      patientId: data.patientId,
+      amount: data.amount,
+      method: String(data.method),
+      transactionId: data.transactionId,
+      description: data.notes ?? `Payment for invoice ${data.invoiceId}`,
+    });
     return response.data;
   }
 

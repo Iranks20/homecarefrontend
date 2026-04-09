@@ -296,6 +296,8 @@ export const API_ENDPOINTS = {
     SYSTEM: '/v1/settings/system',
     NOTIFICATIONS: '/v1/settings/notifications',
     REMINDERS: '/v1/settings/reminders',
+    PAYMENT_METHODS: '/v1/settings/payment-methods',
+    PAYMENT_METHOD_BY_ID: (id: string) => `/v1/settings/payment-methods/${id}`,
     BACKUP: '/v1/settings/backup',
     RESTORE: '/v1/settings/restore',
   },

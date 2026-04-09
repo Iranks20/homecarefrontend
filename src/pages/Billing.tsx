@@ -22,6 +22,7 @@ import { toast } from 'react-toastify';
 import { Invoice } from '../types';
 import AddEditInvoiceModal from '../components/AddEditInvoiceModal';
 import { billingService, type InvoiceSavePayload } from '../services/billing';
+import { paymentMethodService } from '../services/paymentMethods';
 import { patientService } from '../services/patients';
 import servicesService from '../services/services';
 import { useApi, useApiMutation } from '../hooks/useApi';
@@ -59,6 +60,7 @@ export default function Billing() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'unpaid' | 'paid' | 'all'>('unpaid');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
   const [includeArchived, setIncludeArchived] = useState(false);
   const [dateFilter, setDateFilter] = useState('all');
   const [reportPeriod, setReportPeriod] = useState<'day' | 'week' | 'month'>('month');
@@ -91,11 +93,16 @@ export default function Billing() {
 
   const { data: patientsData } = useApi(() => patientService.getPatients({ limit: 200 }), []);
   const { data: servicesData } = useApi(() => servicesService.getServices({ limit: 200 }), []);
+  const { data: paymentMethodsData } = useApi(
+    () => paymentMethodService.getPaymentMethods({ includeInactive: false }),
+    []
+  );
 
   const invoices = invoicesData?.invoices ?? [];
   const patients = patientsData?.patients ?? [];
   const services = servicesData?.services ?? [];
   const summary = summaryData ?? null;
+  const paymentMethods = paymentMethodsData ?? [];
 
   const createInvoiceMutation = useApiMutation(billingService.createInvoice.bind(billingService));
   const updateInvoiceMutation = useApiMutation((params: { id: string; data: InvoiceSavePayload }) =>
@@ -130,9 +137,13 @@ export default function Billing() {
         else if (dateFilter === 'overdue') matchesDate = invoice.status === 'overdue';
       }
 
-      return matchesSearch && matchesDate;
+      const matchesPaymentMethod =
+        paymentMethodFilter === 'all' ||
+        (invoice.paymentMethod ?? '').trim().toLowerCase() === paymentMethodFilter.toLowerCase();
+
+      return matchesSearch && matchesDate && matchesPaymentMethod;
     });
-  }, [invoices, searchTerm, dateFilter]);
+  }, [invoices, searchTerm, dateFilter, paymentMethodFilter]);
 
   const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + invoice.amount, 0);
   const paidAmount = filteredInvoices
@@ -148,7 +159,18 @@ export default function Billing() {
   const handleAddInvoice = async (invoiceData: InvoiceSavePayload) => {
     try {
       const patientName = patients.find((p) => p.id === invoiceData.patientId)?.name ?? 'Patient';
-      await createInvoiceMutation.mutate(invoiceData);
+      const createdInvoice = await createInvoiceMutation.mutate(invoiceData);
+      if (invoiceData.status === 'paid') {
+        const method = invoiceData.paymentMethod?.trim();
+        if (!method) throw new Error('Payment method is required for paid invoices.');
+        await billingService.processPayment({
+          invoiceId: createdInvoice.id,
+          patientId: createdInvoice.patientId,
+          amount: createdInvoice.amount,
+          method,
+          notes: invoiceData.description,
+        });
+      }
       toast.success(`Invoice for ${patientName} has been created successfully.`);
       addNotification({
         title: 'Invoice created',
@@ -178,7 +200,19 @@ export default function Billing() {
     if (!selectedInvoice) return;
     try {
       const patientName = patients.find((p) => p.id === invoiceData.patientId)?.name ?? 'Patient';
-      await updateInvoiceMutation.mutate({ id: selectedInvoice.id, data: invoiceData });
+      const updatedInvoice = await updateInvoiceMutation.mutate({ id: selectedInvoice.id, data: invoiceData });
+      const becamePaid = selectedInvoice.status !== 'paid' && invoiceData.status === 'paid';
+      if (becamePaid) {
+        const method = invoiceData.paymentMethod?.trim();
+        if (!method) throw new Error('Payment method is required for paid invoices.');
+        await billingService.processPayment({
+          invoiceId: updatedInvoice.id,
+          patientId: updatedInvoice.patientId,
+          amount: updatedInvoice.amount,
+          method,
+          notes: invoiceData.description,
+        });
+      }
       toast.success(`Invoice for ${patientName} has been updated successfully.`);
       addNotification({
         title: 'Invoice updated',
@@ -538,7 +572,7 @@ export default function Billing() {
       </div>
 
       <div className="card">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="lg:col-span-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -578,6 +612,20 @@ export default function Billing() {
               <option value="all">All Time</option>
               <option value="last30">Last 30 Days</option>
               <option value="overdue">Overdue Only</option>
+            </select>
+          </div>
+          <div>
+            <select
+              value={paymentMethodFilter}
+              onChange={(e) => setPaymentMethodFilter(e.target.value)}
+              className="input-field"
+            >
+              <option value="all">All Payment Methods</option>
+              {paymentMethods.map((method) => (
+                <option key={method.id} value={method.name}>
+                  {method.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -736,6 +784,7 @@ export default function Billing() {
         mode="add"
         patients={patients}
         services={services}
+        paymentMethods={paymentMethods}
       />
 
       <AddEditInvoiceModal
@@ -749,6 +798,7 @@ export default function Billing() {
         mode="edit"
         patients={patients}
         services={services}
+        paymentMethods={paymentMethods}
       />
 
       {/* View Invoice Modal */}

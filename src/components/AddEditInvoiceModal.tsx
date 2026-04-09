@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Invoice, Patient, Service } from '../types';
 import type { InvoiceSavePayload } from '../services/billing';
+import type { PaymentMethod } from '../services/paymentMethods';
 
 interface AddEditInvoiceModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface AddEditInvoiceModalProps {
   mode: 'add' | 'edit';
   patients: Patient[];
   services: Service[];
+  paymentMethods: PaymentMethod[];
 }
 
 const formatDateForInput = (value?: string, fallback?: Date): string => {
@@ -77,12 +79,14 @@ export default function AddEditInvoiceModal({
   mode,
   patients,
   services,
+  paymentMethods,
 }: AddEditInvoiceModalProps) {
   const defaultDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const [patientId, setPatientId] = useState('');
   const [date, setDate] = useState(formatDateForInput());
   const [dueDate, setDueDate] = useState(formatDateForInput(undefined, defaultDue));
   const [status, setStatus] = useState<Invoice['status']>('pending');
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [description, setDescription] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([emptyDraftLine()]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,6 +105,7 @@ export default function AddEditInvoiceModal({
       setDate(formatDateForInput(invoice.date));
       setDueDate(formatDateForInput(invoice.dueDate, defaultDue));
       setStatus(invoice.status);
+      setPaymentMethod(invoice.paymentMethod ?? '');
       setDescription(invoice.description);
       setLines(draftLinesFromInvoice(invoice));
     } else {
@@ -108,6 +113,7 @@ export default function AddEditInvoiceModal({
       setDate(formatDateForInput());
       setDueDate(formatDateForInput(undefined, defaultDue));
       setStatus('pending');
+      setPaymentMethod('');
       setDescription('');
       setLines([emptyDraftLine()]);
     }
@@ -176,6 +182,7 @@ export default function AddEditInvoiceModal({
         dueDate,
         description: description.trim(),
         status,
+        paymentMethod: status === 'paid' ? (paymentMethod || undefined) : undefined,
         lines: chargesLocked && invoice?.lineItems?.length
           ? invoice.lineItems.map((li) => ({
               serviceId: li.serviceId,
@@ -257,6 +264,25 @@ export default function AddEditInvoiceModal({
               <option value="overdue">Overdue</option>
             </select>
           </div>
+
+          {status === 'paid' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                required
+                className="input-field"
+              >
+                <option value="">Select payment method</option>
+                {paymentMethods.map((method) => (
+                  <option key={method.id} value={method.name}>
+                    {method.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">

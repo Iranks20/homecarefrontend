@@ -191,6 +191,7 @@ export interface Invoice {
   date: string;
   dueDate: string;
   status: 'paid' | 'pending' | 'overdue';
+  paymentMethod?: string;
   description: string;
   archivedAt?: string | null;
   createdAt?: string;
@@ -368,7 +369,7 @@ export interface Payment {
   patientName: string;
   invoiceId: string;
   amount: number;
-  method: 'card' | 'bank-transfer' | 'cash' | 'insurance';
+  method: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
   transactionId?: string;
   date: string;

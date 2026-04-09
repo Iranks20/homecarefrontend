@@ -120,6 +120,9 @@ export function buildInvoicePrintHtml(invoice: Invoice): string {
 
 export function buildReceiptPrintHtml(invoice: Invoice): string {
   let html = receiptTemplate;
+  const paymentMethodLabel = invoice.paymentMethod
+    ? invoice.paymentMethod.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'Cash';
   const vars: Record<string, string> = {
     logoUrl: imgSrcAttr(invoiceLogoHref),
     receiptNumber: escapeHtml(invoice.invoiceNumber || '—'),
@@ -127,7 +130,7 @@ export function buildReceiptPrintHtml(invoice: Invoice): string {
     payerName: escapeHtml(invoice.patientName || '—'),
     amountInWords: escapeHtml(ugxAmountCaption(invoice.amount)),
     paymentFor: escapeHtml(paymentForSummary(invoice)),
-    cashCheque: escapeHtml('Cash'),
+    cashCheque: escapeHtml(paymentMethodLabel),
     balance: escapeHtml('—'),
     amountPaid: escapeHtml(formatUgx(invoice.amount)),
   };
