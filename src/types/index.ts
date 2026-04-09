@@ -149,6 +149,8 @@ export interface Appointment {
   nurseName: string;
   specialistId?: string;
   specialistName?: string;
+  therapistId?: string;
+  therapistName?: string;
   serviceId: string;
   serviceName: string;
   date: string;

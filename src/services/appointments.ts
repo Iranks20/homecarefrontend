@@ -6,6 +6,7 @@ export interface AppointmentSearchParams {
   patientId?: string;
   nurseId?: string;
   specialistId?: string;
+  therapistId?: string;
   status?: Appointment['status'];
   dateFrom?: string;
   dateTo?: string;
@@ -17,6 +18,7 @@ export interface CreateAppointmentData {
   patientId: string;
   nurseId?: string;
   specialistId?: string;
+  therapistId?: string | null;
   serviceId: string;
   date: string;
   time: string;
@@ -43,6 +45,7 @@ type AppointmentApi = {
   patientId: string;
   nurseId?: string | null;
   specialistId?: string | null;
+  therapistId?: string | null;
   serviceId: string;
   date: string;
   time: string;
@@ -52,6 +55,7 @@ type AppointmentApi = {
   patient?: { name: string } | null;
   nurse?: { name: string } | null;
   specialist?: { name: string } | null;
+  therapist?: { name: string } | null;
   service?: { name: string; duration: number } | null;
 };
 
@@ -87,6 +91,8 @@ function normalizeAppointment(appointment: AppointmentApi): Appointment {
     nurseName: appointment.nurse?.name ?? '',
     specialistId: appointment.specialistId ?? undefined,
     specialistName: appointment.specialist?.name ?? undefined,
+    therapistId: appointment.therapistId ?? undefined,
+    therapistName: appointment.therapist?.name ?? undefined,
     serviceId: appointment.serviceId,
     serviceName: appointment.service?.name ?? '',
     date: appointment.date ? new Date(appointment.date).toISOString().split('T')[0] : '',
@@ -106,6 +112,10 @@ function serializeAppointmentPayload(
   // Remove status from create payload (backend sets it automatically)
   if (isCreate && 'status' in data) {
     delete data.status;
+  }
+
+  if (isCreate && data.therapistId == null) {
+    delete data.therapistId;
   }
 
   if (payload.date) {
@@ -132,6 +142,7 @@ export class AppointmentService {
           patientId: params?.patientId,
           nurseId: params?.nurseId,
           specialistId: params?.specialistId,
+          therapistId: params?.therapistId,
           status: params?.status ? STATUS_REVERSE_MAP[params.status] : undefined,
           startDate: params?.dateFrom,
           endDate: params?.dateTo,

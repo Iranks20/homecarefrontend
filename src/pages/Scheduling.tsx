@@ -8,6 +8,7 @@ import patientService from '../services/patients';
 import { nurseService } from '../services/nurses';
 import servicesService from '../services/services';
 import { specialistService } from '../services/specialists';
+import { therapistService } from '../services/therapists';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -20,12 +21,20 @@ function getMonthRange(date: Date) {
   };
 }
 
+function formatLocalDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function Scheduling() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [filterNurse, setFilterNurse] = useState('all');
   const [filterSpecialist, setFilterSpecialist] = useState('all');
+  const [filterTherapist, setFilterTherapist] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -71,6 +80,11 @@ export default function Scheduling() {
     loading: loadingSpecialists,
   } = useApi(() => specialistService.getSpecialists({ limit: 200 }), []);
 
+  const {
+    data: therapistsData,
+    loading: loadingTherapists,
+  } = useApi(() => therapistService.getTherapists({ limit: 200 }), []);
+
   const createAppointmentMutation = useApiMutation(appointmentService.createAppointment.bind(appointmentService));
   const updateAppointmentMutation = useApiMutation(
     (params: { id: string; data: Partial<AppointmentFormValues> }) =>
@@ -86,16 +100,18 @@ export default function Scheduling() {
   }, [appointmentsData]);
 
   const filteredAppointments = useMemo(() => {
-    if (filterNurse === 'all' && filterSpecialist === 'all') {
+    if (filterNurse === 'all' && filterSpecialist === 'all' && filterTherapist === 'all') {
       return appointmentsList;
     }
     return appointmentsList.filter((appointment) => {
       const matchesNurse = filterNurse === 'all' || appointment.nurseId === filterNurse;
       const matchesSpecialist =
         filterSpecialist === 'all' || appointment.specialistId === filterSpecialist;
-      return matchesNurse && matchesSpecialist;
+      const matchesTherapist =
+        filterTherapist === 'all' || appointment.therapistId === filterTherapist;
+      return matchesNurse && matchesSpecialist && matchesTherapist;
     });
-  }, [appointmentsList, filterNurse, filterSpecialist]);
+  }, [appointmentsList, filterNurse, filterSpecialist, filterTherapist]);
 
   const currentMonthAppointments = filteredAppointments.filter((apt) => {
     const aptDate = new Date(apt.date);
@@ -115,6 +131,7 @@ export default function Scheduling() {
   const nursesList = nursesData?.nurses ?? [];
   const servicesList = servicesData?.services ?? [];
   const specialistsList = specialistsData?.specialists ?? [];
+  const therapistsList = therapistsData?.therapists ?? [];
 
   const handleAddAppointment = async (appointmentValues: AppointmentFormValues) => {
     try {
@@ -338,6 +355,18 @@ export default function Scheduling() {
                 </option>
               ))}
             </select>
+            <select
+              value={filterTherapist}
+              onChange={(e) => setFilterTherapist(e.target.value)}
+              className="input-field"
+            >
+              <option value="all">All Therapists</option>
+              {therapistsList.map((therapist) => (
+                <option key={therapist.id} value={therapist.id}>
+                  {therapist.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -354,7 +383,7 @@ export default function Scheduling() {
           {calendarDays.map((day, index) => {
             const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
             const isToday = day.toDateString() === new Date().toDateString();
-            const dayKey = day.toISOString().split('T')[0];
+            const dayKey = formatLocalDateKey(day);
             const dayAppointments = appointmentsByDate[dayKey] || [];
             
             return (
@@ -447,6 +476,7 @@ export default function Scheduling() {
                         <span>{appointment.serviceName}</span>
                         {appointment.nurseName && <span>• Nurse {appointment.nurseName}</span>}
                         {appointment.specialistName && <span>• Specialist {appointment.specialistName}</span>}
+                        {appointment.therapistName && <span>• Therapist {appointment.therapistName}</span>}
                   </div>
                 </div>
               </div>
@@ -501,9 +531,11 @@ export default function Scheduling() {
           patients: loadingPatients,
           nurses: loadingNurses,
           specialists: loadingSpecialists,
+          therapists: loadingTherapists,
           services: loadingServices,
         }}
         specialists={specialistsList}
+        therapists={therapistsList}
       />
 
       <AddEditAppointmentModal
@@ -522,9 +554,11 @@ export default function Scheduling() {
           patients: loadingPatients,
           nurses: loadingNurses,
           specialists: loadingSpecialists,
+          therapists: loadingTherapists,
           services: loadingServices,
         }}
         specialists={specialistsList}
+        therapists={therapistsList}
       />
     </div>
   );

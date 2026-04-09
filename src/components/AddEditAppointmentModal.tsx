@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Appointment, Nurse, Patient, Service, Specialist } from '../types';
+import type { Therapist } from '../services/therapists';
 
 export type AppointmentFormValues = {
   patientId: string;
   nurseId?: string;
   specialistId?: string;
+  therapistId?: string | null;
   serviceId: string;
   date: string;
   time: string;
@@ -18,6 +20,7 @@ interface ReferenceLoadingState {
   patients?: boolean;
   nurses?: boolean;
   specialists?: boolean;
+  therapists?: boolean;
   services?: boolean;
 }
 
@@ -31,6 +34,7 @@ interface AddEditAppointmentModalProps {
   nurses: Nurse[];
   services: Service[];
   specialists: Specialist[];
+  therapists: Therapist[];
   loading?: ReferenceLoadingState;
 }
 
@@ -54,6 +58,7 @@ export default function AddEditAppointmentModal({
   nurses,
   services,
   specialists,
+  therapists,
   loading,
 }: AddEditAppointmentModalProps) {
   const [formData, setFormData] = useState<AppointmentFormValues>(
@@ -63,6 +68,7 @@ export default function AddEditAppointmentModal({
           nurseId: appointment.nurseId || undefined,
           serviceId: appointment.serviceId,
           specialistId: appointment.specialistId || undefined,
+          therapistId: appointment.therapistId || undefined,
           date: appointment.date,
           time: appointment.time,
           duration: appointment.duration,
@@ -74,6 +80,7 @@ export default function AddEditAppointmentModal({
           nurseId: '',
           serviceId: '',
           specialistId: '',
+          therapistId: '',
           date: new Date().toISOString().split('T')[0],
           time: '',
           duration: 60,
@@ -98,6 +105,7 @@ export default function AddEditAppointmentModal({
         nurseId: appointment.nurseId || undefined,
         serviceId: appointment.serviceId,
         specialistId: appointment.specialistId || undefined,
+        therapistId: appointment.therapistId || undefined,
         date: appointment.date,
         time: appointment.time,
         duration: appointment.duration,
@@ -111,6 +119,7 @@ export default function AddEditAppointmentModal({
         nurseId: '',
         serviceId: '',
         specialistId: '',
+        therapistId: '',
         date: new Date().toISOString().split('T')[0],
         time: '',
         duration: 60,
@@ -121,7 +130,14 @@ export default function AddEditAppointmentModal({
   }, [appointment, mode]);
 
   const isReferenceLoading = useMemo(
-    () => Boolean(loading?.patients || loading?.nurses || loading?.services || loading?.specialists),
+    () =>
+      Boolean(
+        loading?.patients ||
+          loading?.nurses ||
+          loading?.services ||
+          loading?.specialists ||
+          loading?.therapists
+      ),
     [loading]
   );
 
@@ -146,6 +162,14 @@ export default function AddEditAppointmentModal({
     }));
   };
 
+  const handleTherapistChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      therapistId: value || undefined,
+    }));
+  };
+
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const serviceId = e.target.value;
     const selectedService = services.find((service) => service.id === serviceId);
@@ -166,6 +190,8 @@ export default function AddEditAppointmentModal({
         ...formData,
         nurseId: formData.nurseId || undefined,
         specialistId: formData.specialistId || undefined,
+        therapistId:
+          mode === 'edit' ? formData.therapistId || null : formData.therapistId || undefined,
         notes: formData.notes?.trim() ? formData.notes.trim() : undefined,
       });
       onClose();
@@ -224,7 +250,7 @@ export default function AddEditAppointmentModal({
           </div>
 
           {/* Nurse Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Assigned Nurse
@@ -260,6 +286,26 @@ export default function AddEditAppointmentModal({
                 {specialists.map((specialist) => (
                   <option key={specialist.id} value={specialist.id}>
                     {specialist.name} - {specialist.specialization.replace(/-/g, ' ')}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Assigned Therapist
+              </label>
+              <select
+                name="therapistId"
+                value={formData.therapistId ?? ''}
+                onChange={handleTherapistChange}
+                className="input-field"
+                disabled={isReferenceLoading || isSubmitting}
+              >
+                <option value="">Select a therapist</option>
+                {therapists.map((therapist) => (
+                  <option key={therapist.id} value={therapist.id}>
+                    {therapist.name} - {therapist.specialization.replace(/-/g, ' ')}
                   </option>
                 ))}
               </select>
