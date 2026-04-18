@@ -10,6 +10,13 @@ export interface PatientSearchParams {
   limit?: number;
 }
 
+export interface CreatePatientCasePayload {
+  type: 'NEW' | 'FOLLOW_UP';
+  diagnosis?: string;
+  attending?: string;
+  notes?: string;
+}
+
 export interface PatientRegistrationData {
   name: string;
   email?: string;
@@ -65,6 +72,9 @@ function normalizePatient(patient: PatientApi): Patient {
   const medicalHistoryText = (patient as any).medicalHistoryNotes ?? '';
   const medicalHistoryRecords = patient.medicalHistory ?? [];
   
+  const totalCaseVisits =
+    typeof (patient as any).totalCaseVisits === 'number' ? (patient as any).totalCaseVisits : undefined;
+
   return {
     ...patient,
     status: patient.status
@@ -81,6 +91,7 @@ function normalizePatient(patient: PatientApi): Patient {
     assignedDoctorId: patient.assignedSpecialist?.id ?? patient.assignedSpecialistId,
     assignedNurseId: undefined,
     referredSpecialistId: patient.assignedTherapist?.id ?? patient.assignedTherapistId,
+    ...(totalCaseVisits !== undefined ? { totalCaseVisits } : {}),
   } as Patient;
 }
 
@@ -157,10 +168,10 @@ export class PatientService {
     await apiService.delete(API_ENDPOINTS.PATIENTS.BY_ID(id));
   }
 
-  async searchPatients(query: string): Promise<Patient[]> {
+  async searchPatients(query: string, opts?: { limit?: number }): Promise<Patient[]> {
     const response = await apiService.get<PatientApi[]>(
       API_ENDPOINTS.PATIENTS.SEARCH,
-      { params: { query } }
+      { params: { query, limit: opts?.limit ?? 20 } }
     );
     return Array.isArray(response.data)
       ? response.data.map(normalizePatient)
@@ -268,7 +279,7 @@ export class PatientService {
 
   async createPatientCase(
     patientId: string,
-    caseData: Omit<PatientCase, 'id' | 'patientId' | 'patientName'>
+    caseData: CreatePatientCasePayload
   ): Promise<PatientCase> {
     const response = await apiService.post<PatientCase>(
       API_ENDPOINTS.PATIENTS.CASES(patientId),
@@ -301,10 +312,12 @@ export class PatientService {
 
   async logPatientCaseVisit(
     patientId: string,
-    caseId: string
+    caseId: string,
+    body?: { details?: string }
   ): Promise<PatientCase> {
     const response = await apiService.post<PatientCase>(
-      API_ENDPOINTS.PATIENTS.CASE_VISITS(patientId, caseId)
+      API_ENDPOINTS.PATIENTS.CASE_VISITS(patientId, caseId),
+      body ?? {}
     );
     return response.data;
   }

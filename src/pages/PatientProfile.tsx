@@ -31,13 +31,16 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useApi, useApiMutation } from '../hooks/useApi';
-import { patientService } from '../services/patients';
+import { patientService, type PatientRegistrationData } from '../services/patients';
+import { userService } from '../services/users';
+import servicesService from '../services/services';
 import { healthRecordService } from '../services/healthRecords';
 import { billingService } from '../services/billing';
 import { investigationRequestService } from '../services/investigationRequests';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import AddEditHealthRecordModal from '../components/AddEditHealthRecordModal';
+import AddEditPatientModal, { type PatientFormValues } from '../components/AddEditPatientModal';
 import { getAssetUrl } from '../config/api';
 import { downloadPatientProfilePdf, generatePatientProfilePdf } from '../utils/patientProfilePdf';
 import type {
@@ -85,21 +88,55 @@ export default function PatientProfile() {
   const [requestLabTestOther, setRequestLabTestOther] = useState('');
   const [requestLabNotes, setRequestLabNotes] = useState('');
   const [requestLabPriority, setRequestLabPriority] = useState<'ROUTINE' | 'URGENT' | 'STAT'>('ROUTINE');
-  const [showAddCaseModal, setShowAddCaseModal] = useState(false);
-  const [addCaseType, setAddCaseType] = useState<'NEW' | 'FOLLOW_UP'>('FOLLOW_UP');
-  const [addCaseNotes, setAddCaseNotes] = useState('');
-  const [addCaseSubmitting, setAddCaseSubmitting] = useState(false);
+  const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
 
   // Check if user can record vitals (nurses, specialists, therapists, admin)
   const canRecordVitals = user?.role === 'nurse' || user?.role === 'specialist' || user?.role === 'therapist' || user?.role === 'admin';
   // Receptionist, biller, specialist, therapist, admin can request labs (cannot see results; lab attendant can)
   const canRequestLab = user?.role === 'receptionist' || user?.role === 'biller' || user?.role === 'specialist' || user?.role === 'therapist' || user?.role === 'admin';
-  const canLogVisit =
+  const canRecordFollowUpVisit =
     user?.role === 'admin' ||
     user?.role === 'receptionist' ||
     user?.role === 'nurse' ||
     user?.role === 'specialist' ||
     user?.role === 'therapist';
+
+  const { data: followUpResources } = useApi(
+    async () => {
+      const [{ users: specUsers }, { users: therUsers }, { services }] = await Promise.all([
+        userService.getMedicalStaff({ role: 'SPECIALIST', limit: 300 }),
+        userService.getMedicalStaff({ role: 'THERAPIST', limit: 300 }),
+        servicesService.getServices({ limit: 300 }),
+      ]);
+      const formatSpec = (raw?: string | null) => {
+        if (!raw) return undefined;
+        if (raw.includes('-') || raw.includes(' ')) {
+          return raw
+            .split(/[- ]/)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
+        }
+        return raw
+          .split('_')
+          .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+          .join(' ');
+      };
+      return {
+        specialists: specUsers.map((u) => ({
+          id: u.id,
+          name: u.name,
+          specialization: formatSpec((u as { specialization?: string; specialistSpecialization?: string }).specialization ?? (u as { specialistSpecialization?: string }).specialistSpecialization),
+        })),
+        therapists: therUsers.map((u) => ({
+          id: u.id,
+          name: u.name,
+          specialization: formatSpec((u as { therapistSpecialization?: string }).therapistSpecialization),
+        })),
+        services: (services ?? []).map((s) => ({ id: s.id, name: s.name })),
+      };
+    },
+    []
+  );
 
   const {
     data: profileData,
@@ -147,6 +184,11 @@ export default function PatientProfile() {
 
   const patient = profileData?.patient;
 
+  const totalLoggedCaseVisits = useMemo(
+    () => (profileData?.cases ?? []).reduce((sum, c) => sum + (Number(c.visitsCount) || 0), 0),
+    [profileData?.cases]
+  );
+
   const chartData = useMemo(() => {
     if (!profileData?.progress?.length) {
       return [];
@@ -164,76 +206,17 @@ export default function PatientProfile() {
     ? profileData.progress[profileData.progress.length - 1]
     : undefined;
 
-  const handleLogFollowUpVisit = async () => {
-    try {
-      if (!id) return;
-
-      const existingCases = profileData?.cases ?? [];
-      const openCases = existingCases.filter((c) => c.status === 'open');
-      let targetCase = openCases.find((c) => c.type === 'follow-up') ?? openCases[0];
-
-      if (!targetCase) {
-        const created = await patientService.createPatientCase(id, {
-          type: 'follow-up',
-        } as any);
-        targetCase = created;
-      }
-
-      await patientService.logPatientCaseVisit(id, targetCase.id);
-      await refetch();
-
-      addNotification({
-        title: 'Visit logged',
-        message: `Visit recorded for case ${targetCase.caseNumber}.`,
-        type: 'success',
-        userId: user?.id ?? 'system',
-        priority: 'medium',
-        category: 'system',
-      });
-    } catch (err: any) {
-      addNotification({
-        title: 'Unable to log visit',
-        message: err?.message ?? 'Please try again later.',
-        type: 'error',
-        userId: user?.id ?? 'system',
-        priority: 'high',
-        category: 'system',
-      });
-    }
-  };
-
-  const handleAddCase = async () => {
-    if (!id) return;
-    setAddCaseSubmitting(true);
-    try {
-      await patientService.createPatientCase(id, {
-        type: addCaseType,
-        ...(addCaseNotes.trim() ? { notes: addCaseNotes.trim() } : {}),
-      } as any);
-      setShowAddCaseModal(false);
-      setAddCaseNotes('');
-      setAddCaseType('FOLLOW_UP');
-      await refetch();
-      addNotification({
-        title: 'Case created',
-        message: `${addCaseType === 'NEW' ? 'New' : 'Follow-up'} case added.`,
-        type: 'success',
-        userId: user?.id ?? 'system',
-        priority: 'medium',
-        category: 'system',
-      });
-    } catch (err: any) {
-      addNotification({
-        title: 'Unable to add case',
-        message: err?.message ?? 'Please try again later.',
-        type: 'error',
-        userId: user?.id ?? 'system',
-        priority: 'high',
-        category: 'system',
-      });
-    } finally {
-      setAddCaseSubmitting(false);
-    }
+  const handleSavePatientFromModal = async (values: PatientFormValues) => {
+    await patientService.createPatient(values as PatientRegistrationData);
+    addNotification({
+      title: 'Patient created',
+      message: `${values.name} has been added.`,
+      type: 'success',
+      userId: user?.id ?? 'system',
+      priority: 'medium',
+      category: 'system',
+    });
+    await refetch();
   };
 
   const recentHealthRecords = useMemo(() => {
@@ -591,31 +574,25 @@ export default function PatientProfile() {
 
         <div className="lg:col-span-2 space-y-6">
           <div className="card">
-            <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-medium text-gray-900">Cases</h3>
-              <span className="text-sm text-gray-500">{profileData?.cases.length ?? 0} records</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {canLogVisit && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCaseModal(true)}
-                    className="btn-outline text-xs px-3 py-1"
-                  >
-                    Add case
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLogFollowUpVisit}
-                    className="btn-outline text-xs px-3 py-1"
-                  >
-                    Log follow-up visit
-                  </button>
-                </>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-medium text-gray-900">Cases</h3>
+                  <span className="text-sm text-gray-500">
+                    {profileData?.cases.length ?? 0} case{(profileData?.cases.length ?? 0) === 1 ? '' : 's'} ·{' '}
+                    {totalLoggedCaseVisits} visit{totalLoggedCaseVisits === 1 ? '' : 's'} logged
+                  </span>
+                </div>
+              </div>
+              {canRecordFollowUpVisit && patient && (
+                <button
+                  type="button"
+                  onClick={() => setFollowUpModalOpen(true)}
+                  className="btn-primary text-sm whitespace-nowrap shrink-0"
+                >
+                  Record follow-up visit
+                </button>
               )}
-            </div>
             </div>
             {profileData?.cases.length ? (
               <div className="space-y-3">
@@ -629,7 +606,7 @@ export default function PatientProfile() {
                           <span className="font-medium text-gray-900">{patientCase.caseNumber}</span>
                           <span
                             className={`status-badge ${
-                              patientCase.status === 'open'
+                              String(patientCase.status).toUpperCase() === 'OPEN'
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-gray-100 text-gray-800'
                             }`}
@@ -638,7 +615,7 @@ export default function PatientProfile() {
                           </span>
                           <span
                             className={`status-badge ${
-                              patientCase.type === 'new'
+                              String(patientCase.type).toUpperCase().replace(/-/g, '_') === 'NEW'
                                 ? 'bg-blue-100 text-blue-800'
                                 : 'bg-yellow-100 text-yellow-800'
                             }`}
@@ -1210,45 +1187,18 @@ export default function PatientProfile() {
         </div>
       )}
 
-      {showAddCaseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowAddCaseModal(false)} />
-          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4 mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Add case</h3>
-              <button type="button" onClick={() => setShowAddCaseModal(false)} className="text-gray-400 hover:text-gray-600">×</button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select
-                  value={addCaseType}
-                  onChange={(e) => setAddCaseType(e.target.value as 'NEW' | 'FOLLOW_UP')}
-                  className="input-field"
-                >
-                  <option value="NEW">New</option>
-                  <option value="FOLLOW_UP">Follow-up</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-                <textarea
-                  value={addCaseNotes}
-                  onChange={(e) => setAddCaseNotes(e.target.value)}
-                  placeholder="Diagnosis, attending, or other notes"
-                  className="input-field resize-none"
-                  rows={3}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button type="button" onClick={() => setShowAddCaseModal(false)} className="btn-outline">Cancel</button>
-              <button type="button" onClick={handleAddCase} className="btn-primary" disabled={addCaseSubmitting}>
-                {addCaseSubmitting ? 'Creating...' : 'Create case'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {patient && (
+        <AddEditPatientModal
+          isOpen={followUpModalOpen}
+          onClose={() => setFollowUpModalOpen(false)}
+          onSave={handleSavePatientFromModal}
+          onRefresh={refetch}
+          mode="add"
+          followUpSeedPatient={followUpModalOpen ? patient : null}
+          specialists={followUpResources?.specialists ?? []}
+          therapists={followUpResources?.therapists ?? []}
+          services={followUpResources?.services ?? []}
+        />
       )}
     </div>
   );

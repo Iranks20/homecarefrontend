@@ -457,6 +457,9 @@ export default function Patients() {
                   Admission Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Visits
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -468,7 +471,7 @@ export default function Patients() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-10 text-center text-sm text-gray-500"
                   >
                     Loading patients...
@@ -477,7 +480,7 @@ export default function Patients() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-10 text-center text-sm text-red-500"
                   >
                     {error}
@@ -486,7 +489,7 @@ export default function Patients() {
               ) : filteredPatients.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-10 text-center text-sm text-gray-500"
                   >
                     No patients match your filters yet.
@@ -580,6 +583,9 @@ export default function Patients() {
                       </div>
                     </div>
                   </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                      {patient.totalCaseVisits ?? 0}
+                    </td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <span
                         className={`status-badge ${
@@ -636,6 +642,7 @@ export default function Patients() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleAddPatient}
+        onRefresh={loadPatients}
         mode="add"
         specialists={specialists}
         therapists={therapists}

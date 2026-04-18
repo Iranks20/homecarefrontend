@@ -76,6 +76,8 @@ export interface Patient {
   insuranceNumber?: string;
   referralSource?: string;
   serviceIds?: string[];
+  /** Sum of case visit counts (logged facility visits) when returned from patient list API */
+  totalCaseVisits?: number;
 }
 
 export interface MedicalRecord {
