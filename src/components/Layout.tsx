@@ -90,6 +90,7 @@ const getNavigationForRole = (role: string) => {
   const nurseNavigation = [
     ...baseNavigation,
     { name: 'Patients', href: '/patients', icon: UserCheck },
+    { name: 'Clinical Documentation', href: '/health-records', icon: FileText },
   ];
 
   const adminNavigation = [
