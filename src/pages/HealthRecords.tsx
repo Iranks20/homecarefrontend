@@ -94,15 +94,14 @@ export default function HealthRecords() {
 
   const { addNotification } = useNotifications();
   const { user } = useAuth();
-  // Only admin can edit, verify, or delete health records (receptionists/nurses add; others view only)
-  const canEditRecords = user?.role === 'admin';
+  const canEditRecords = user?.role === 'admin' || user?.role === 'specialist';
 
   const loadRecords = async () => {
     setRecordsLoading(true);
     setRecordsError(null);
     try {
       const { records } = await healthRecordService.getHealthRecords({
-        limit: 50,
+        limit: 200,
       });
       setRecords(records);
     } catch (err: any) {
