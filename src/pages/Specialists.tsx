@@ -5,7 +5,12 @@ import { Specialist } from '../types';
 import AddEditSpecialistModal from '../components/AddEditSpecialistModal';
 import ViewSpecialistModal from '../components/ViewSpecialistModal';
 import { useApi, useApiMutation } from '../hooks/useApi';
-import { specialistService } from '../services/specialists';
+import { specialistService, specialistStoredToFilterCode } from '../services/specialists';
+import {
+  specializationService,
+  specializationOptionValueFromName,
+  type Specialization,
+} from '../services/specializations';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getAssetUrl } from '../config/api';
@@ -31,22 +36,49 @@ export default function Specialists() {
     refetch,
   } = useApi(() => specialistService.getSpecialists({ limit: 200 }), []);
 
+  const { data: specialistSpecializationOptions } = useApi(
+    () => specializationService.getSpecializations({ type: 'SPECIALIST' }),
+    []
+  );
+
+  const specialistSpecList = specialistSpecializationOptions ?? [];
+
   const specialistsList = specialistsData?.specialists ?? [];
+
+  const specialistSpecByFilterCode = useMemo(() => {
+    const map = new Map<string, Specialization>();
+    for (const spec of specialistSpecList) {
+      if (!spec.isActive) continue;
+      map.set(specializationOptionValueFromName(spec.name), spec);
+    }
+    return map;
+  }, [specialistSpecList]);
+
+  const sortedSpecialistSpecs = useMemo(() => {
+    return [...specialistSpecList]
+      .filter((s) => s.isActive)
+      .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
+  }, [specialistSpecList]);
 
   const filteredSpecialists = useMemo(() => {
     return specialistsList.filter((specialist) => {
+      const specLabel =
+        specialistSpecByFilterCode.get(specialistStoredToFilterCode(specialist.specialization))
+          ?.name ?? specialist.specialization;
       const matchesSearch =
         specialist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         specialist.specialization.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        specLabel.toLowerCase().includes(searchTerm.toLowerCase()) ||
         specialist.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesSpecialization =
-        filterSpecialization === 'all' || specialist.specialization === filterSpecialization;
+        filterSpecialization === 'all' ||
+        specialistStoredToFilterCode(specialist.specialization) === filterSpecialization;
       const matchesStatus = filterStatus === 'all' || specialist.status === filterStatus;
 
       return matchesSearch && matchesSpecialization && matchesStatus;
     });
-  }, [specialistsList, searchTerm, filterSpecialization, filterStatus]);
+  }, [specialistsList, searchTerm, filterSpecialization, filterStatus, specialistSpecByFilterCode]);
 
   const createSpecialistMutation = useApiMutation(specialistService.createSpecialist.bind(specialistService));
   const updateSpecialistMutation = useApiMutation(
@@ -264,14 +296,12 @@ export default function Specialists() {
               onChange={(e) => setFilterSpecialization(e.target.value)}
               className="input-field"
             >
-              <option value="all">All Specializations</option>
-              <option value="clinical-psychologist">Clinical Psychologist</option>
-              <option value="nutritionist">Nutritionist</option>
-              <option value="critical-care-nurse">Critical Care Nurse</option>
-              <option value="medical-doctor">Medical Doctor</option>
-              <option value="geriatrician">Geriatrician</option>
-              <option value="palliative-care-specialist">Palliative Care Specialist</option>
-              <option value="senior-midwife">Senior Midwife</option>
+              <option value="all">All specializations</option>
+              {sortedSpecialistSpecs.map((spec) => (
+                <option key={spec.id} value={specializationOptionValueFromName(spec.name)}>
+                  {spec.name}
+                </option>
+              ))}
             </select>
           </div>
           <div className="sm:w-48">
@@ -380,7 +410,9 @@ export default function Specialists() {
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${getSpecializationColor(specialist.specialization)}`}
                       >
-                        {formatSpecialization(specialist.specialization)}
+                        {specialistSpecByFilterCode.get(
+                          specialistStoredToFilterCode(specialist.specialization)
+                        )?.name ?? formatSpecialization(specialist.specialization)}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">

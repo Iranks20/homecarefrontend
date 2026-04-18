@@ -3,7 +3,11 @@ import { X, Plus, Trash2, Upload, Image as ImageIcon, Loader2 } from 'lucide-rea
 import { Specialist } from '../types';
 import { apiService } from '../services/api';
 import { API_CONFIG, API_ENDPOINTS, getAssetUrl } from '../config/api';
-import { specializationService, type Specialization } from '../services/specializations';
+import {
+  specializationService,
+  specializationOptionValueFromName,
+  type Specialization,
+} from '../services/specializations';
 
 interface SpecialistFormValues {
   username: string;
@@ -453,7 +457,7 @@ export default function AddEditSpecialistModal({
                     <option disabled>Loading specializations...</option>
                   ) : (
                     specializations.map((spec) => (
-                      <option key={spec.id} value={spec.name.toUpperCase().replace(/\s+/g, '_')}>
+                      <option key={spec.id} value={specializationOptionValueFromName(spec.name)}>
                         {spec.name}
                       </option>
                     ))

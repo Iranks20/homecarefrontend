@@ -1,6 +1,7 @@
 import { apiService } from './api';
 import { API_ENDPOINTS } from '../config/api';
 import { Specialist, PaginatedResponse } from '../types';
+import { specializationOptionValueFromName } from './specializations';
 
 export interface SpecialistSearchParams {
   page?: number;
@@ -60,6 +61,15 @@ const SPECIALIST_TYPE_REVERSE_MAP: Record<Specialist['specialization'], string> 
   acc[slug] = code;
   return acc;
 }, {} as Record<Specialist['specialization'], string>);
+
+export function specialistStoredToFilterCode(stored: string): string {
+  if (!stored) return '';
+  const fromLegacySlug = (Object.entries(SPECIALIST_TYPE_MAP) as [string, string][]).find(
+    ([, slug]) => slug === stored
+  )?.[0];
+  if (fromLegacySlug) return fromLegacySlug;
+  return specializationOptionValueFromName(stored.replace(/-/g, ' '));
+}
 
 function normalizeSpecialist(specialist: SpecialistApi): Specialist {
   const statusCode = specialist.status?.toUpperCase();

@@ -1,8 +1,18 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, Plus, Eye, Edit, Trash2, Stethoscope, Phone, Award } from 'lucide-react';
 import AddEditTherapistModal from '../components/AddEditTherapistModal';
 import { useApi, useApiMutation } from '../hooks/useApi';
-import { therapistService, type Therapist, type CreateTherapistData } from '../services/therapists';
+import {
+  therapistService,
+  therapistStoredToFilterCode,
+  type Therapist,
+  type CreateTherapistData,
+} from '../services/therapists';
+import {
+  specializationService,
+  specializationOptionValueFromName,
+  type Specialization,
+} from '../services/specializations';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
@@ -12,6 +22,7 @@ export default function Therapists() {
   const isAdmin = user?.role === 'admin';
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [specializationFilter, setSpecializationFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -27,7 +38,29 @@ export default function Therapists() {
     limit: 200 
   }), []);
 
+  const { data: therapistSpecializationOptions } = useApi(
+    () => specializationService.getSpecializations({ type: 'THERAPIST' }),
+    []
+  );
+
+  const therapistSpecList = therapistSpecializationOptions ?? [];
+
   const therapists = data?.therapists ?? [];
+
+  const therapistSpecByFilterCode = useMemo(() => {
+    const map = new Map<string, Specialization>();
+    for (const spec of therapistSpecList) {
+      if (!spec.isActive) continue;
+      map.set(specializationOptionValueFromName(spec.name), spec);
+    }
+    return map;
+  }, [therapistSpecList]);
+
+  const sortedTherapistSpecs = useMemo(() => {
+    return [...therapistSpecList]
+      .filter((s) => s.isActive)
+      .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
+  }, [therapistSpecList]);
 
   const createTherapistMutation = useApiMutation(therapistService.createTherapist.bind(therapistService));
   const updateTherapistMutation = useApiMutation(
@@ -39,21 +72,29 @@ export default function Therapists() {
   const filteredTherapists = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
     return therapists.filter((therapist) => {
+      const specLabel =
+        therapistSpecByFilterCode.get(therapistStoredToFilterCode(therapist.specialization))
+          ?.name ?? therapist.specialization;
       const matchesSearch =
         !search ||
         therapist.name.toLowerCase().includes(search) ||
         therapist.email?.toLowerCase().includes(search) ||
         therapist.specialization.toLowerCase().includes(search) ||
+        specLabel.toLowerCase().includes(search) ||
         therapist.licenseNumber?.toLowerCase().includes(search);
+
+      const matchesSpecialization =
+        specializationFilter === 'all' ||
+        therapistStoredToFilterCode(therapist.specialization) === specializationFilter;
 
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'active' && therapist.status === 'active') ||
         (statusFilter === 'inactive' && therapist.status === 'inactive');
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesSpecialization && matchesStatus;
     });
-  }, [therapists, searchTerm, statusFilter]);
+  }, [therapists, searchTerm, statusFilter, specializationFilter, therapistSpecByFilterCode]);
 
   const handleCreateTherapist = async (payload: any) => {
     try {
@@ -168,7 +209,19 @@ export default function Therapists() {
               className="input-field pl-10"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={specializationFilter}
+              onChange={(e) => setSpecializationFilter(e.target.value)}
+              className="input-field min-w-[12rem]"
+            >
+              <option value="all">All specializations</option>
+              {sortedTherapistSpecs.map((spec) => (
+                <option key={spec.id} value={specializationOptionValueFromName(spec.name)}>
+                  {spec.name}
+                </option>
+              ))}
+            </select>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
@@ -233,8 +286,9 @@ export default function Therapists() {
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{therapist.email ?? <span className="text-gray-400 italic">Not provided</span>}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700 capitalize">
-                      {therapist.specialization ?? '—'}
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                      {therapistSpecByFilterCode.get(therapistStoredToFilterCode(therapist.specialization))
+                        ?.name ?? (therapist.specialization ?? '—')}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{therapist.phone ?? '—'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">

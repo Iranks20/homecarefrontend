@@ -25,6 +25,10 @@ export interface SpecializationSearchParams {
   includeInactive?: boolean;
 }
 
+export function specializationOptionValueFromName(name: string): string {
+  return name.trim().toUpperCase().replace(/\s+/g, '_');
+}
+
 export class SpecializationService {
   async getSpecializations(params?: SpecializationSearchParams): Promise<Specialization[]> {
     const response = await apiService.get<Specialization[]>(API_ENDPOINTS.SPECIALIZATIONS.BASE, {

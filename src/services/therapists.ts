@@ -1,5 +1,6 @@
 import { apiService } from './api';
 import { API_ENDPOINTS } from '../config/api';
+import { specializationOptionValueFromName } from './specializations';
 
 export interface Therapist {
   id: string;
@@ -59,6 +60,11 @@ const THERAPIST_STATUS_REVERSE_MAP: Record<Therapist['status'], string> = {
   inactive: 'INACTIVE',
   'on-leave': 'ON_LEAVE',
 };
+
+export function therapistStoredToFilterCode(stored: string): string {
+  if (!stored) return '';
+  return specializationOptionValueFromName(stored.replace(/-/g, ' '));
+}
 
 function normalizeTherapist(therapist: TherapistApi): Therapist {
   const statusCode = therapist.status?.toUpperCase();

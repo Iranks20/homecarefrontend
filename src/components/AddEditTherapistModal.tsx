@@ -3,7 +3,11 @@ import { X, Plus, Upload, Image as ImageIcon, Loader2, UserPlus } from 'lucide-r
 import { apiService } from '../services/api';
 import { API_ENDPOINTS, getAssetUrl } from '../config/api';
 import { therapistService, type Therapist } from '../services/therapists';
-import { specializationService, type Specialization } from '../services/specializations';
+import {
+  specializationService,
+  specializationOptionValueFromName,
+  type Specialization,
+} from '../services/specializations';
 
 interface TherapistFormValues {
   username: string;
@@ -454,7 +458,7 @@ export default function AddEditTherapistModal({
                     <option disabled>Loading specializations...</option>
                   ) : (
                     specializations.map((spec) => (
-                      <option key={spec.id} value={spec.name.toUpperCase().replace(/\s+/g, '_')}>
+                      <option key={spec.id} value={specializationOptionValueFromName(spec.name)}>
                         {spec.name}
                       </option>
                     ))
