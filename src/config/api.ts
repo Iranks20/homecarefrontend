@@ -156,6 +156,7 @@ export const API_ENDPOINTS = {
     REVENUE_REPORT: '/v1/billing/reports/revenue',
     OUTSTANDING_REPORT: '/v1/billing/reports/outstanding',
     SUMMARY: '/v1/billing/reports/summary',
+    CONSULTATION_PROVIDERS: '/v1/billing/consultation-providers',
   },
   
   // Physiotherapy
@@ -213,6 +214,14 @@ export const API_ENDPOINTS = {
     SEND: (id: string) => `/v1/phone-reminders/${id}/send`,
     CANCEL: (id: string) => `/v1/phone-reminders/${id}/cancel`,
     TEMPLATES: '/v1/phone-reminders/templates',
+  },
+
+  SMS: {
+    MESSAGES: '/v1/sms/messages',
+    MESSAGE_BY_ID: (id: string) => `/v1/sms/messages/${id}`,
+    TEMPLATES: '/v1/sms/templates',
+    TEMPLATE_BY_ID: (id: string) => `/v1/sms/templates/${id}`,
+    DIRECTORY: '/v1/sms/directory',
   },
   
   // Communication

@@ -97,12 +97,17 @@ export default function Billing() {
     () => paymentMethodService.getPaymentMethods({ includeInactive: false }),
     []
   );
+  const { data: consultationProvidersData } = useApi(
+    () => billingService.getConsultationProviders(),
+    []
+  );
 
   const invoices = invoicesData?.invoices ?? [];
   const patients = patientsData?.patients ?? [];
   const services = servicesData?.services ?? [];
   const summary = summaryData ?? null;
   const paymentMethods = paymentMethodsData ?? [];
+  const consultationProviders = consultationProvidersData ?? [];
 
   const createInvoiceMutation = useApiMutation(billingService.createInvoice.bind(billingService));
   const updateInvoiceMutation = useApiMutation((params: { id: string; data: InvoiceSavePayload }) =>
@@ -785,6 +790,7 @@ export default function Billing() {
         patients={patients}
         services={services}
         paymentMethods={paymentMethods}
+        consultationProviders={consultationProviders}
       />
 
       <AddEditInvoiceModal
@@ -799,6 +805,7 @@ export default function Billing() {
         patients={patients}
         services={services}
         paymentMethods={paymentMethods}
+        consultationProviders={consultationProviders}
       />
 
       {/* View Invoice Modal */}

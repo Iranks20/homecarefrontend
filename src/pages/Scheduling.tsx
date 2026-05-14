@@ -142,7 +142,7 @@ export default function Scheduling() {
         type: 'success',
         userId: 'system',
         priority: 'medium',
-        category: 'schedule',
+        category: 'appointment',
       });
       await refetchAppointments();
     setIsAddModalOpen(false);
@@ -175,7 +175,7 @@ export default function Scheduling() {
         type: 'success',
         userId: 'system',
         priority: 'medium',
-        category: 'schedule',
+        category: 'appointment',
       });
       await refetchAppointments();
       setIsEditModalOpen(false);
@@ -215,7 +215,7 @@ export default function Scheduling() {
         type: 'info',
         userId: 'system',
         priority: 'medium',
-        category: 'schedule',
+        category: 'appointment',
       });
       await refetchAppointments();
     } catch (error: any) {

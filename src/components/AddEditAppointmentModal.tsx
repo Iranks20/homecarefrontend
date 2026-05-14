@@ -14,6 +14,8 @@ export type AppointmentFormValues = {
   duration: number;
   status: Appointment['status'];
   notes?: string;
+  patientPhone?: string;
+  notifyPatient?: boolean;
 };
 
 interface ReferenceLoadingState {
@@ -61,6 +63,9 @@ export default function AddEditAppointmentModal({
   therapists,
   loading,
 }: AddEditAppointmentModalProps) {
+  const findPatientPhone = (patientId: string | undefined): string =>
+    patientId ? patients.find((p) => p.id === patientId)?.phone ?? '' : '';
+
   const [formData, setFormData] = useState<AppointmentFormValues>(
     appointment
       ? {
@@ -74,6 +79,8 @@ export default function AddEditAppointmentModal({
           duration: appointment.duration,
           status: appointment.status,
           notes: appointment.notes ?? '',
+          patientPhone: findPatientPhone(appointment.patientId),
+          notifyPatient: true,
         }
       : {
           patientId: '',
@@ -86,6 +93,8 @@ export default function AddEditAppointmentModal({
           duration: 60,
           status: 'scheduled',
           notes: '',
+          patientPhone: '',
+          notifyPatient: true,
         }
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,6 +120,8 @@ export default function AddEditAppointmentModal({
         duration: appointment.duration,
         status: appointment.status,
         notes: appointment.notes ?? '',
+        patientPhone: findPatientPhone(appointment.patientId),
+        notifyPatient: true,
       });
     } else if (mode === 'add') {
       setFormData((prev) => ({
@@ -125,9 +136,11 @@ export default function AddEditAppointmentModal({
         duration: 60,
         status: 'scheduled',
         notes: '',
+        patientPhone: '',
+        notifyPatient: true,
       }));
     }
-  }, [appointment, mode]);
+  }, [appointment, mode, patients]);
 
   const isReferenceLoading = useMemo(
     () =>
@@ -151,6 +164,16 @@ export default function AddEditAppointmentModal({
         name === 'duration'
           ? Number(value)
           : value,
+    }));
+  };
+
+  const handlePatientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const patientId = e.target.value;
+    const selectedPatient = patients.find((p) => p.id === patientId);
+    setFormData((prev) => ({
+      ...prev,
+      patientId,
+      patientPhone: selectedPatient?.phone ?? '',
     }));
   };
 
@@ -193,6 +216,8 @@ export default function AddEditAppointmentModal({
         therapistId:
           mode === 'edit' ? formData.therapistId || null : formData.therapistId || undefined,
         notes: formData.notes?.trim() ? formData.notes.trim() : undefined,
+        patientPhone: formData.patientPhone?.trim() ? formData.patientPhone.trim() : undefined,
+        notifyPatient: formData.notifyPatient ?? true,
       });
       onClose();
     } catch (err: any) {
@@ -234,7 +259,7 @@ export default function AddEditAppointmentModal({
             <select
               name="patientId"
               value={formData.patientId}
-              onChange={handleInputChange}
+              onChange={handlePatientChange}
               required
               className="input-field"
               disabled={isReferenceLoading || isSubmitting}
@@ -247,6 +272,40 @@ export default function AddEditAppointmentModal({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Patient Phone (editable, used for SMS confirmation) */}
+          <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Patient phone (for SMS confirmation)
+              </label>
+              <input
+                type="tel"
+                name="patientPhone"
+                value={formData.patientPhone ?? ''}
+                onChange={handleInputChange}
+                placeholder={formData.patientId ? 'Enter patient phone' : 'Select a patient first'}
+                className="input-field"
+                disabled={isSubmitting || !formData.patientId}
+              />
+              <p className="mt-1 text-xs text-gray-600">
+                This number will receive a confirmation SMS. Edit it here if the patient's record is incorrect.
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="notifyPatient"
+                checked={formData.notifyPatient ?? true}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, notifyPatient: e.target.checked }))
+                }
+                disabled={isSubmitting}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              Send confirmation SMS to patient
+            </label>
           </div>
 
           {/* Nurse Selection */}

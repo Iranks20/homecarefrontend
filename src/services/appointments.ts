@@ -24,6 +24,8 @@ export interface CreateAppointmentData {
   time: string;
   duration: number;
   notes?: string;
+  patientPhone?: string;
+  notifyPatient?: boolean;
 }
 
 export interface RescheduleAppointmentData {

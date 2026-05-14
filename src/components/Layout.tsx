@@ -52,8 +52,7 @@ const getNavigationForRole = (role: string) => {
     { name: 'Specialists', href: '/specialists', icon: Activity },
     { name: 'Therapists', href: '/therapists', icon: Stethoscope },
     { name: 'Billers', href: '/billers', icon: CreditCard },
-    // TODO: Re-enable Communication feature in the future
-    // { name: 'Communication', href: '/communication', icon: MessageSquare },
+    { name: 'SMS Messages', href: '/sms-messages', icon: MessageSquare },
   ];
 
   // Doctor navigation - review patients and assign to specialists
@@ -110,6 +109,7 @@ const getNavigationForRole = (role: string) => {
     { name: 'Billing', href: '/billing', icon: CreditCard },
     { name: 'Reports & Analytics', href: '/reports', icon: BarChart3 },
     { name: 'Training & Exams', href: '/training', icon: BookOpen },
+    { name: 'SMS Messages', href: '/sms-messages', icon: MessageSquare },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -121,6 +121,7 @@ const getNavigationForRole = (role: string) => {
     { name: 'Services', href: '/services', icon: Package },
     { name: 'Consultation rates', href: '/consultation-rates', icon: DollarSign },
     { name: 'Billing', href: '/billing', icon: CreditCard },
+    { name: 'SMS Messages', href: '/sms-messages', icon: MessageSquare },
   ];
 
   // Lab attendant - investigations and lab samples

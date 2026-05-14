@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Invoice, Patient, Service } from '../types';
-import type { InvoiceSavePayload } from '../services/billing';
+import type { InvoiceSavePayload, ConsultationProvider } from '../services/billing';
 import type { PaymentMethod } from '../services/paymentMethods';
 
 interface AddEditInvoiceModalProps {
@@ -13,7 +13,22 @@ interface AddEditInvoiceModalProps {
   patients: Patient[];
   services: Service[];
   paymentMethods: PaymentMethod[];
+  consultationProviders?: ConsultationProvider[];
 }
+
+const SERVICE_OPTION_PREFIX = 'service:';
+const CONSULTATION_OPTION_PREFIX = 'consultation:';
+
+const formatSpecialization = (value?: string | null): string => {
+  if (!value) return '';
+  return value.replace(/_/g, ' ').toLowerCase();
+};
+
+const titleForProvider = (p: ConsultationProvider): string => {
+  const spec = formatSpecialization(p.specialization);
+  const roleLabel = p.role === 'specialist' ? 'specialist' : 'therapist';
+  return spec ? `${p.name} — ${spec} ${roleLabel}` : `${p.name} — ${roleLabel}`;
+};
 
 const formatDateForInput = (value?: string, fallback?: Date): string => {
   if (value) {
@@ -30,7 +45,9 @@ const newRowKey = () => `${Date.now()}-${Math.random().toString(36).slice(2, 11)
 
 type DraftLine = {
   key: string;
+  kind: 'service' | 'consultation';
   serviceId: string;
+  consultationProviderId: string;
   quantity: number;
   unitPrice: number;
   description: string;
@@ -38,7 +55,9 @@ type DraftLine = {
 
 const emptyDraftLine = (): DraftLine => ({
   key: newRowKey(),
+  kind: 'service',
   serviceId: '',
+  consultationProviderId: '',
   quantity: 1,
   unitPrice: 0,
   description: '',
@@ -49,19 +68,26 @@ const draftLinesFromInvoice = (invoice?: Invoice | null): DraftLine[] => {
     return [emptyDraftLine()];
   }
   if (invoice.lineItems && invoice.lineItems.length > 0) {
-    return invoice.lineItems.map((li) => ({
-      key: newRowKey(),
-      serviceId: li.serviceId,
-      quantity: li.quantity,
-      unitPrice: li.unitPrice,
-      description: li.description,
-    }));
+    return invoice.lineItems.map((li) => {
+      const isConsultation = !!li.consultationProviderId;
+      return {
+        key: newRowKey(),
+        kind: isConsultation ? 'consultation' : 'service',
+        serviceId: isConsultation ? '' : li.serviceId,
+        consultationProviderId: isConsultation ? String(li.consultationProviderId) : '',
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        description: li.description,
+      };
+    });
   }
   if (invoice.serviceId) {
     return [
       {
         key: newRowKey(),
+        kind: 'service',
         serviceId: invoice.serviceId,
+        consultationProviderId: '',
         quantity: 1,
         unitPrice: invoice.amount ?? 0,
         description: invoice.description || invoice.serviceName || '',
@@ -80,7 +106,13 @@ export default function AddEditInvoiceModal({
   patients,
   services,
   paymentMethods,
+  consultationProviders = [],
 }: AddEditInvoiceModalProps) {
+  const providerById = useMemo(() => {
+    const map = new Map<string, ConsultationProvider>();
+    consultationProviders.forEach((p) => map.set(p.id, p));
+    return map;
+  }, [consultationProviders]);
   const defaultDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const [patientId, setPatientId] = useState('');
   const [date, setDate] = useState(formatDateForInput());
@@ -123,14 +155,60 @@ export default function AddEditInvoiceModal({
     setLines((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   };
 
-  const onServicePick = (key: string, serviceId: string) => {
+  const onItemPick = (key: string, value: string) => {
+    if (value.startsWith(CONSULTATION_OPTION_PREFIX)) {
+      const providerId = value.slice(CONSULTATION_OPTION_PREFIX.length);
+      const provider = providerById.get(providerId);
+      if (!provider) return;
+      const spec = formatSpecialization(provider.specialization);
+      const roleLabel = provider.role === 'specialist' ? 'specialist' : 'therapist';
+      const descriptionSuffix = spec ? ` (${spec} ${roleLabel})` : ` (${roleLabel})`;
+      updateLine(key, {
+        kind: 'consultation',
+        consultationProviderId: providerId,
+        serviceId: '',
+        unitPrice: provider.consultationFee ?? 0,
+        description: `Consultation — ${provider.name}${descriptionSuffix}`,
+      });
+      return;
+    }
+
+    const serviceId = value.startsWith(SERVICE_OPTION_PREFIX)
+      ? value.slice(SERVICE_OPTION_PREFIX.length)
+      : value;
+    if (!serviceId) {
+      updateLine(key, {
+        kind: 'service',
+        serviceId: '',
+        consultationProviderId: '',
+        unitPrice: 0,
+        description: '',
+      });
+      return;
+    }
     const svc = services.find((s) => s.id === serviceId);
     updateLine(key, {
+      kind: 'service',
       serviceId,
+      consultationProviderId: '',
       unitPrice: svc?.price ?? 0,
       description: svc?.name ?? '',
     });
   };
+
+  const currentItemValue = (row: DraftLine): string => {
+    if (row.kind === 'consultation' && row.consultationProviderId) {
+      return `${CONSULTATION_OPTION_PREFIX}${row.consultationProviderId}`;
+    }
+    if (row.kind === 'service' && row.serviceId) {
+      return `${SERVICE_OPTION_PREFIX}${row.serviceId}`;
+    }
+    return '';
+  };
+
+  const lineHasSelection = (row: DraftLine): boolean =>
+    (row.kind === 'service' && !!row.serviceId) ||
+    (row.kind === 'consultation' && !!row.consultationProviderId);
 
   const addLine = () => {
     setLines((prev) => [...prev, emptyDraftLine()]);
@@ -150,16 +228,21 @@ export default function AddEditInvoiceModal({
 
     try {
       const payloadLines = lines
-        .filter((row) => row.serviceId)
-        .map((row) => ({
-          serviceId: row.serviceId,
-          quantity: Math.max(1, Math.floor(row.quantity)),
-          unitPrice: row.unitPrice,
-          description: row.description.trim() || undefined,
-        }));
+        .filter((row) => lineHasSelection(row))
+        .map((row) => {
+          const base = {
+            quantity: Math.max(1, Math.floor(row.quantity)),
+            unitPrice: row.unitPrice,
+            description: row.description.trim() || undefined,
+          };
+          if (row.kind === 'consultation') {
+            return { ...base, consultationProviderId: row.consultationProviderId };
+          }
+          return { ...base, serviceId: row.serviceId };
+        });
 
       if (payloadLines.length === 0) {
-        setError('Add at least one service line.');
+        setError('Add at least one service or consultation line.');
         setIsSubmitting(false);
         return;
       }
@@ -184,12 +267,17 @@ export default function AddEditInvoiceModal({
         status,
         paymentMethod: status === 'paid' ? (paymentMethod || undefined) : undefined,
         lines: chargesLocked && invoice?.lineItems?.length
-          ? invoice.lineItems.map((li) => ({
-              serviceId: li.serviceId,
-              quantity: li.quantity,
-              unitPrice: li.unitPrice,
-              description: li.description,
-            }))
+          ? invoice.lineItems.map((li) => {
+              const base = {
+                quantity: li.quantity,
+                unitPrice: li.unitPrice,
+                description: li.description,
+              };
+              if (li.consultationProviderId) {
+                return { ...base, consultationProviderId: li.consultationProviderId };
+              }
+              return { ...base, serviceId: li.serviceId };
+            })
           : payloadLines,
       };
 
@@ -286,7 +374,7 @@ export default function AddEditInvoiceModal({
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">Service lines *</label>
+              <label className="block text-sm font-medium text-gray-700">Charge lines *</label>
               {!chargesLocked && (
                 <button type="button" onClick={addLine} className="text-sm text-primary-600 flex items-center gap-1 hover:text-primary-800">
                   <Plus className="h-4 w-4" />
@@ -294,27 +382,60 @@ export default function AddEditInvoiceModal({
                 </button>
               )}
             </div>
+            <p className="text-xs text-gray-500 mb-2">
+              Pick a service from the catalogue, or a specialist/therapist consultation rate from the Consultations group.
+            </p>
             <div className="border rounded-lg divide-y border-gray-200">
-              {lines.map((row) => (
+              {lines.map((row) => {
+                const specialistProviders = consultationProviders.filter((p) => p.role === 'specialist');
+                const therapistProviders = consultationProviders.filter((p) => p.role === 'therapist');
+                return (
                 <div key={row.key} className="p-4 space-y-3 bg-gray-50/50">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                     <div className="md:col-span-5">
-                      <label className="block text-xs text-gray-600 mb-1">Service</label>
+                      <label className="block text-xs text-gray-600 mb-1">Service or consultation</label>
                       <select
-                        value={row.serviceId}
-                        onChange={(e) => onServicePick(row.key, e.target.value)}
+                        value={currentItemValue(row)}
+                        onChange={(e) => onItemPick(row.key, e.target.value)}
                         required={!chargesLocked}
                         disabled={chargesLocked}
                         className="input-field text-sm"
                       >
-                        <option value="">Select service</option>
-                        {services.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                            {typeof s.price === 'number' ? ` — ${s.price.toLocaleString()} UGX` : ''}
-                          </option>
-                        ))}
+                        <option value="">Select a service or consultation</option>
+                        {services.length > 0 && (
+                          <optgroup label="Services">
+                            {services.map((s) => (
+                              <option key={s.id} value={`${SERVICE_OPTION_PREFIX}${s.id}`}>
+                                {s.name}
+                                {typeof s.price === 'number' ? ` — ${s.price.toLocaleString()} UGX` : ''}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {specialistProviders.length > 0 && (
+                          <optgroup label="Specialist consultations">
+                            {specialistProviders.map((p) => (
+                              <option key={p.id} value={`${CONSULTATION_OPTION_PREFIX}${p.id}`}>
+                                {titleForProvider(p)} — {p.consultationFee.toLocaleString()} UGX
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {therapistProviders.length > 0 && (
+                          <optgroup label="Therapist consultations">
+                            {therapistProviders.map((p) => (
+                              <option key={p.id} value={`${CONSULTATION_OPTION_PREFIX}${p.id}`}>
+                                {titleForProvider(p)} — {p.consultationFee.toLocaleString()} UGX
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
                       </select>
+                      {row.kind === 'consultation' && (
+                        <p className="mt-1 text-[11px] text-primary-700">
+                          Consultation rate billed against {providerById.get(row.consultationProviderId)?.name ?? 'provider'}.
+                        </p>
+                      )}
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs text-gray-600 mb-1">Qty</label>
@@ -365,11 +486,12 @@ export default function AddEditInvoiceModal({
                       onChange={(e) => updateLine(row.key, { description: e.target.value })}
                       disabled={chargesLocked}
                       className="input-field text-sm"
-                      placeholder="Defaults to service name"
+                      placeholder="Defaults to service or consultation name"
                     />
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             <p className="text-sm text-gray-600 mt-2 text-right font-medium">
               Invoice total: <span className="text-gray-900">{invoiceTotal.toLocaleString()} UGX</span>

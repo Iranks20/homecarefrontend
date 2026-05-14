@@ -34,6 +34,7 @@ import Communication from './pages/Communication';
 import Specialists from './pages/Specialists';
 import Settings from './pages/Settings';
 import PhoneReminders from './pages/PhoneReminders';
+import SmsMessages from './pages/SmsMessages';
 import HealthRecords from './pages/HealthRecords';
 import BillerDashboard from './pages/BillerDashboard';
 import Billers from './pages/Billers';
@@ -96,6 +97,7 @@ function AppContent() {
           {/* Shared Routes */}
           <Route path="/health-records" element={<HealthRecords />} />
           <Route path="/phone-reminders" element={<PhoneReminders />} />
+          <Route path="/sms-messages" element={<SmsMessages />} />
           <Route path="/scheduling" element={<Scheduling />} />
           <Route path="/services" element={<Services />} />
           <Route path="/training" element={<Training />} />

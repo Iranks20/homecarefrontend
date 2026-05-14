@@ -48,7 +48,8 @@ export interface GenerateInvoiceData {
 }
 
 export interface InvoiceLinePayload {
-  serviceId: string;
+  serviceId?: string;
+  consultationProviderId?: string;
   quantity?: number;
   unitPrice?: number;
   description?: string;
@@ -65,13 +66,27 @@ export interface InvoiceSavePayload {
   paymentMethod?: string;
 }
 
+export interface ConsultationProvider {
+  id: string;
+  name: string;
+  role: 'specialist' | 'therapist';
+  specialization?: string | null;
+  consultationFee: number;
+}
+
 type InvoiceApi = Invoice & {
   patient?: { id: string; name: string; email: string; title?: string | null } | null;
   service?: { id: string; name: string } | null;
   lineItems?: InvoiceLineItem[];
 };
 
-function normalizeLineItem(li: Partial<InvoiceLineItem> & { id?: string }): InvoiceLineItem {
+function normalizeLineItem(
+  li: Partial<InvoiceLineItem> & {
+    id?: string;
+    consultationProviderId?: string | null;
+    consultationProviderName?: string | null;
+  }
+): InvoiceLineItem {
   return {
     id: String(li.id ?? ''),
     serviceId: String(li.serviceId ?? ''),
@@ -82,6 +97,8 @@ function normalizeLineItem(li: Partial<InvoiceLineItem> & { id?: string }): Invo
     unitPrice: Number(li.unitPrice ?? 0),
     lineAmount: Number(li.lineAmount ?? 0),
     sortOrder: Number(li.sortOrder ?? 0),
+    consultationProviderId: li.consultationProviderId ?? null,
+    consultationProviderName: li.consultationProviderName ?? null,
   };
 }
 
@@ -216,6 +233,13 @@ export class BillingService {
   async getOutstandingReport(): Promise<Record<string, any>> {
     const response = await apiService.get<Record<string, any>>(API_ENDPOINTS.BILLING.OUTSTANDING_REPORT);
     return response.data ?? {};
+  }
+
+  async getConsultationProviders(): Promise<ConsultationProvider[]> {
+    const response = await apiService.get<ConsultationProvider[]>(
+      API_ENDPOINTS.BILLING.CONSULTATION_PROVIDERS
+    );
+    return Array.isArray(response.data) ? response.data : [];
   }
 }
 

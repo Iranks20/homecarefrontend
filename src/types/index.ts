@@ -179,6 +179,8 @@ export interface InvoiceLineItem {
   unitPrice: number;
   lineAmount: number;
   sortOrder: number;
+  consultationProviderId?: string | null;
+  consultationProviderName?: string | null;
 }
 
 export interface Invoice {
