@@ -1,7 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Invoice, Patient, Service } from '../types';
-import type { InvoiceSavePayload, ConsultationProvider } from '../services/billing';
+import type {
+  InvoiceSavePayload,
+  ConsultationProvider,
+  ConsultationProviderSource,
+} from '../services/billing';
 import type { PaymentMethod } from '../services/paymentMethods';
 
 interface AddEditInvoiceModalProps {
@@ -17,7 +21,24 @@ interface AddEditInvoiceModalProps {
 }
 
 const SERVICE_OPTION_PREFIX = 'service:';
-const CONSULTATION_OPTION_PREFIX = 'consultation:';
+
+const providerLookupKey = (source: ConsultationProviderSource, id: string) => `${source}|${id}`;
+
+const consultOptionValue = (source: ConsultationProviderSource, id: string) =>
+  `consult|${source}|${id}`;
+
+const parseConsultOptionValue = (
+  value: string
+): { source: ConsultationProviderSource; id: string } | null => {
+  if (!value.startsWith('consult|')) return null;
+  const parts = value.split('|');
+  if (parts.length < 3) return null;
+  const source = parts[1] as ConsultationProviderSource;
+  if (source !== 'user' && source !== 'specialist' && source !== 'therapist') return null;
+  const id = parts.slice(2).join('|');
+  if (!id) return null;
+  return { source, id };
+};
 
 const formatSpecialization = (value?: string | null): string => {
   if (!value) return '';
@@ -27,7 +48,16 @@ const formatSpecialization = (value?: string | null): string => {
 const titleForProvider = (p: ConsultationProvider): string => {
   const spec = formatSpecialization(p.specialization);
   const roleLabel = p.role === 'specialist' ? 'specialist' : 'therapist';
-  return spec ? `${p.name} — ${spec} ${roleLabel}` : `${p.name} — ${roleLabel}`;
+  const base = spec ? `${p.name} — ${spec} ${roleLabel}` : `${p.name} — ${roleLabel}`;
+  const rateHint =
+    p.source === 'user'
+      ? 'Consultation rates page'
+      : p.role === 'specialist'
+      ? 'Specialist hourly rate'
+      : 'Therapist hourly rate';
+  const feeLabel =
+    p.consultationFee > 0 ? `${p.consultationFee.toLocaleString()} UGX` : 'set rate first';
+  return `${base} (${rateHint}: ${feeLabel})`;
 };
 
 const formatDateForInput = (value?: string, fallback?: Date): string => {
@@ -47,7 +77,8 @@ type DraftLine = {
   key: string;
   kind: 'service' | 'consultation';
   serviceId: string;
-  consultationProviderId: string;
+  consultSource: ConsultationProviderSource | '';
+  consultEntityId: string;
   quantity: number;
   unitPrice: number;
   description: string;
@@ -57,7 +88,8 @@ const emptyDraftLine = (): DraftLine => ({
   key: newRowKey(),
   kind: 'service',
   serviceId: '',
-  consultationProviderId: '',
+  consultSource: '',
+  consultEntityId: '',
   quantity: 1,
   unitPrice: 0,
   description: '',
@@ -69,12 +101,28 @@ const draftLinesFromInvoice = (invoice?: Invoice | null): DraftLine[] => {
   }
   if (invoice.lineItems && invoice.lineItems.length > 0) {
     return invoice.lineItems.map((li) => {
-      const isConsultation = !!li.consultationProviderId;
+      const isUserConsult = !!li.consultationProviderId;
+      const isSpecConsult = !!li.consultationSpecialistId;
+      const isTherConsult = !!li.consultationTherapistId;
+      const isConsult = isUserConsult || isSpecConsult || isTherConsult;
       return {
         key: newRowKey(),
-        kind: isConsultation ? 'consultation' : 'service',
-        serviceId: isConsultation ? '' : li.serviceId,
-        consultationProviderId: isConsultation ? String(li.consultationProviderId) : '',
+        kind: isConsult ? 'consultation' : 'service',
+        serviceId: isConsult ? '' : li.serviceId,
+        consultSource: isUserConsult
+          ? 'user'
+          : isSpecConsult
+          ? 'specialist'
+          : isTherConsult
+          ? 'therapist'
+          : '',
+        consultEntityId: isUserConsult
+          ? String(li.consultationProviderId)
+          : isSpecConsult
+          ? String(li.consultationSpecialistId)
+          : isTherConsult
+          ? String(li.consultationTherapistId)
+          : '',
         quantity: li.quantity,
         unitPrice: li.unitPrice,
         description: li.description,
@@ -87,7 +135,8 @@ const draftLinesFromInvoice = (invoice?: Invoice | null): DraftLine[] => {
         key: newRowKey(),
         kind: 'service',
         serviceId: invoice.serviceId,
-        consultationProviderId: '',
+        consultSource: '',
+        consultEntityId: '',
         quantity: 1,
         unitPrice: invoice.amount ?? 0,
         description: invoice.description || invoice.serviceName || '',
@@ -108,9 +157,9 @@ export default function AddEditInvoiceModal({
   paymentMethods,
   consultationProviders = [],
 }: AddEditInvoiceModalProps) {
-  const providerById = useMemo(() => {
+  const providerByKey = useMemo(() => {
     const map = new Map<string, ConsultationProvider>();
-    consultationProviders.forEach((p) => map.set(p.id, p));
+    consultationProviders.forEach((p) => map.set(providerLookupKey(p.source, p.id), p));
     return map;
   }, [consultationProviders]);
   const defaultDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -156,18 +205,21 @@ export default function AddEditInvoiceModal({
   };
 
   const onItemPick = (key: string, value: string) => {
-    if (value.startsWith(CONSULTATION_OPTION_PREFIX)) {
-      const providerId = value.slice(CONSULTATION_OPTION_PREFIX.length);
-      const provider = providerById.get(providerId);
+    const consultParsed = parseConsultOptionValue(value);
+    if (consultParsed) {
+      const provider = providerByKey.get(
+        providerLookupKey(consultParsed.source, consultParsed.id)
+      );
       if (!provider) return;
       const spec = formatSpecialization(provider.specialization);
       const roleLabel = provider.role === 'specialist' ? 'specialist' : 'therapist';
       const descriptionSuffix = spec ? ` (${spec} ${roleLabel})` : ` (${roleLabel})`;
       updateLine(key, {
         kind: 'consultation',
-        consultationProviderId: providerId,
+        consultSource: consultParsed.source,
+        consultEntityId: consultParsed.id,
         serviceId: '',
-        unitPrice: provider.consultationFee ?? 0,
+        unitPrice: provider.consultationFee > 0 ? provider.consultationFee : 0,
         description: `Consultation — ${provider.name}${descriptionSuffix}`,
       });
       return;
@@ -180,7 +232,8 @@ export default function AddEditInvoiceModal({
       updateLine(key, {
         kind: 'service',
         serviceId: '',
-        consultationProviderId: '',
+        consultSource: '',
+        consultEntityId: '',
         unitPrice: 0,
         description: '',
       });
@@ -190,15 +243,16 @@ export default function AddEditInvoiceModal({
     updateLine(key, {
       kind: 'service',
       serviceId,
-      consultationProviderId: '',
+      consultSource: '',
+      consultEntityId: '',
       unitPrice: svc?.price ?? 0,
       description: svc?.name ?? '',
     });
   };
 
   const currentItemValue = (row: DraftLine): string => {
-    if (row.kind === 'consultation' && row.consultationProviderId) {
-      return `${CONSULTATION_OPTION_PREFIX}${row.consultationProviderId}`;
+    if (row.kind === 'consultation' && row.consultSource && row.consultEntityId) {
+      return consultOptionValue(row.consultSource, row.consultEntityId);
     }
     if (row.kind === 'service' && row.serviceId) {
       return `${SERVICE_OPTION_PREFIX}${row.serviceId}`;
@@ -208,7 +262,7 @@ export default function AddEditInvoiceModal({
 
   const lineHasSelection = (row: DraftLine): boolean =>
     (row.kind === 'service' && !!row.serviceId) ||
-    (row.kind === 'consultation' && !!row.consultationProviderId);
+    (row.kind === 'consultation' && !!row.consultSource && !!row.consultEntityId);
 
   const addLine = () => {
     setLines((prev) => [...prev, emptyDraftLine()]);
@@ -236,7 +290,16 @@ export default function AddEditInvoiceModal({
             description: row.description.trim() || undefined,
           };
           if (row.kind === 'consultation') {
-            return { ...base, consultationProviderId: row.consultationProviderId };
+            if (row.consultSource === 'user') {
+              return { ...base, consultationProviderId: row.consultEntityId };
+            }
+            if (row.consultSource === 'specialist') {
+              return { ...base, consultationSpecialistId: row.consultEntityId };
+            }
+            if (row.consultSource === 'therapist') {
+              return { ...base, consultationTherapistId: row.consultEntityId };
+            }
+            throw new Error('Invalid consultation line');
           }
           return { ...base, serviceId: row.serviceId };
         });
@@ -276,6 +339,12 @@ export default function AddEditInvoiceModal({
               if (li.consultationProviderId) {
                 return { ...base, consultationProviderId: li.consultationProviderId };
               }
+              if (li.consultationSpecialistId) {
+                return { ...base, consultationSpecialistId: li.consultationSpecialistId };
+              }
+              if (li.consultationTherapistId) {
+                return { ...base, consultationTherapistId: li.consultationTherapistId };
+              }
               return { ...base, serviceId: li.serviceId };
             })
           : payloadLines,
@@ -293,8 +362,8 @@ export default function AddEditInvoiceModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-[min(100vw-1.5rem,90rem)] sm:max-w-[min(100vw-2rem,90rem)] max-h-[90vh] overflow-y-auto min-w-0">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-semibold text-gray-900">
             {mode === 'add' ? 'Create New Invoice' : 'Edit Invoice'}
@@ -383,7 +452,8 @@ export default function AddEditInvoiceModal({
               )}
             </div>
             <p className="text-xs text-gray-500 mb-2">
-              Pick a service from the catalogue, or a specialist/therapist consultation rate from the Consultations group.
+              Pick a service, a staff consultation rate from the Consultation rates page (user accounts), or a roster
+              specialist/therapist (uses the hourly rate on their profile).
             </p>
             <div className="border rounded-lg divide-y border-gray-200">
               {lines.map((row) => {
@@ -392,14 +462,14 @@ export default function AddEditInvoiceModal({
                 return (
                 <div key={row.key} className="p-4 space-y-3 bg-gray-50/50">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                    <div className="md:col-span-5">
+                    <div className="md:col-span-6 xl:col-span-7 min-w-0">
                       <label className="block text-xs text-gray-600 mb-1">Service or consultation</label>
                       <select
                         value={currentItemValue(row)}
                         onChange={(e) => onItemPick(row.key, e.target.value)}
                         required={!chargesLocked}
                         disabled={chargesLocked}
-                        className="input-field text-sm"
+                        className="input-field text-sm min-w-0 max-w-full"
                       >
                         <option value="">Select a service or consultation</option>
                         {services.length > 0 && (
@@ -415,8 +485,12 @@ export default function AddEditInvoiceModal({
                         {specialistProviders.length > 0 && (
                           <optgroup label="Specialist consultations">
                             {specialistProviders.map((p) => (
-                              <option key={p.id} value={`${CONSULTATION_OPTION_PREFIX}${p.id}`}>
-                                {titleForProvider(p)} — {p.consultationFee.toLocaleString()} UGX
+                              <option
+                                key={`${p.source}-${p.id}`}
+                                value={consultOptionValue(p.source, p.id)}
+                                disabled={p.consultationFee <= 0}
+                              >
+                                {titleForProvider(p)}
                               </option>
                             ))}
                           </optgroup>
@@ -424,20 +498,27 @@ export default function AddEditInvoiceModal({
                         {therapistProviders.length > 0 && (
                           <optgroup label="Therapist consultations">
                             {therapistProviders.map((p) => (
-                              <option key={p.id} value={`${CONSULTATION_OPTION_PREFIX}${p.id}`}>
-                                {titleForProvider(p)} — {p.consultationFee.toLocaleString()} UGX
+                              <option
+                                key={`${p.source}-${p.id}`}
+                                value={consultOptionValue(p.source, p.id)}
+                                disabled={p.consultationFee <= 0}
+                              >
+                                {titleForProvider(p)}
                               </option>
                             ))}
                           </optgroup>
                         )}
                       </select>
-                      {row.kind === 'consultation' && (
+                      {row.kind === 'consultation' && row.consultSource && row.consultEntityId && (
                         <p className="mt-1 text-[11px] text-primary-700">
-                          Consultation rate billed against {providerById.get(row.consultationProviderId)?.name ?? 'provider'}.
+                          Consultation billed for{' '}
+                          {providerByKey.get(providerLookupKey(row.consultSource, row.consultEntityId))?.name ??
+                            'selected provider'}
+                          .
                         </p>
                       )}
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 xl:col-span-1 min-w-0">
                       <label className="block text-xs text-gray-600 mb-1">Qty</label>
                       <input
                         type="number"
@@ -449,7 +530,7 @@ export default function AddEditInvoiceModal({
                         className="input-field text-sm"
                       />
                     </div>
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-2 xl:col-span-2 min-w-0">
                       <label className="block text-xs text-gray-600 mb-1">Unit price (UGX)</label>
                       <input
                         type="number"
@@ -461,7 +542,7 @@ export default function AddEditInvoiceModal({
                         className="input-field text-sm"
                       />
                     </div>
-                    <div className="md:col-span-2 flex justify-between items-center gap-2">
+                    <div className="md:col-span-2 xl:col-span-2 flex justify-between items-center gap-2 min-w-0">
                       <div>
                         <p className="text-xs text-gray-600">Line</p>
                         <p className="text-sm font-semibold text-gray-900">{lineTotal(row).toLocaleString()} UGX</p>

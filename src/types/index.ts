@@ -181,6 +181,10 @@ export interface InvoiceLineItem {
   sortOrder: number;
   consultationProviderId?: string | null;
   consultationProviderName?: string | null;
+  consultationSpecialistId?: string | null;
+  consultationSpecialistName?: string | null;
+  consultationTherapistId?: string | null;
+  consultationTherapistName?: string | null;
 }
 
 export interface Invoice {

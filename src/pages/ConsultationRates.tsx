@@ -59,7 +59,9 @@ export default function ConsultationRates() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Consultation rates</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Set consultation fees (UGX) for specialists and therapists. These appear on the biller dashboard when a patient is assigned.
+          Set consultation fees (UGX) for specialist and therapist <strong>user accounts</strong>. These same rates appear
+          when creating invoices under staff consultations. Roster specialists and therapists (scheduling profiles) use
+          their <strong>hourly rate</strong> on the Specialists / Therapists pages for invoice billing.
         </p>
       </div>
 

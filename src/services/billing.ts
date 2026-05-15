@@ -50,6 +50,8 @@ export interface GenerateInvoiceData {
 export interface InvoiceLinePayload {
   serviceId?: string;
   consultationProviderId?: string;
+  consultationSpecialistId?: string;
+  consultationTherapistId?: string;
   quantity?: number;
   unitPrice?: number;
   description?: string;
@@ -66,7 +68,10 @@ export interface InvoiceSavePayload {
   paymentMethod?: string;
 }
 
+export type ConsultationProviderSource = 'user' | 'specialist' | 'therapist';
+
 export interface ConsultationProvider {
+  source: ConsultationProviderSource;
   id: string;
   name: string;
   role: 'specialist' | 'therapist';
@@ -85,6 +90,10 @@ function normalizeLineItem(
     id?: string;
     consultationProviderId?: string | null;
     consultationProviderName?: string | null;
+    consultationSpecialistId?: string | null;
+    consultationSpecialistName?: string | null;
+    consultationTherapistId?: string | null;
+    consultationTherapistName?: string | null;
   }
 ): InvoiceLineItem {
   return {
@@ -99,6 +108,10 @@ function normalizeLineItem(
     sortOrder: Number(li.sortOrder ?? 0),
     consultationProviderId: li.consultationProviderId ?? null,
     consultationProviderName: li.consultationProviderName ?? null,
+    consultationSpecialistId: li.consultationSpecialistId ?? null,
+    consultationSpecialistName: li.consultationSpecialistName ?? null,
+    consultationTherapistId: li.consultationTherapistId ?? null,
+    consultationTherapistName: li.consultationTherapistName ?? null,
   };
 }
 
@@ -239,7 +252,11 @@ export class BillingService {
     const response = await apiService.get<ConsultationProvider[]>(
       API_ENDPOINTS.BILLING.CONSULTATION_PROVIDERS
     );
-    return Array.isArray(response.data) ? response.data : [];
+    const raw = Array.isArray(response.data) ? response.data : [];
+    return raw.map((p) => ({
+      ...p,
+      source: p.source ?? 'user',
+    }));
   }
 }
 
