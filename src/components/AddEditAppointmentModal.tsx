@@ -16,6 +16,7 @@ export type AppointmentFormValues = {
   notes?: string;
   patientPhone?: string;
   notifyPatient?: boolean;
+  reminderTiming?: 'MID_DAY_BEFORE' | 'TWENTY_FOUR_HOURS_BEFORE';
 };
 
 interface ReferenceLoadingState {
@@ -81,6 +82,7 @@ export default function AddEditAppointmentModal({
           notes: appointment.notes ?? '',
           patientPhone: findPatientPhone(appointment.patientId),
           notifyPatient: true,
+          reminderTiming: 'MID_DAY_BEFORE',
         }
       : {
           patientId: '',
@@ -95,6 +97,7 @@ export default function AddEditAppointmentModal({
           notes: '',
           patientPhone: '',
           notifyPatient: true,
+          reminderTiming: 'MID_DAY_BEFORE',
         }
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -122,6 +125,7 @@ export default function AddEditAppointmentModal({
         notes: appointment.notes ?? '',
         patientPhone: findPatientPhone(appointment.patientId),
         notifyPatient: true,
+        reminderTiming: 'MID_DAY_BEFORE',
       });
     } else if (mode === 'add') {
       setFormData((prev) => ({
@@ -138,6 +142,7 @@ export default function AddEditAppointmentModal({
         notes: '',
         patientPhone: '',
         notifyPatient: true,
+        reminderTiming: 'MID_DAY_BEFORE',
       }));
     }
   }, [appointment, mode, patients]);
@@ -218,6 +223,10 @@ export default function AddEditAppointmentModal({
         notes: formData.notes?.trim() ? formData.notes.trim() : undefined,
         patientPhone: formData.patientPhone?.trim() ? formData.patientPhone.trim() : undefined,
         notifyPatient: formData.notifyPatient ?? true,
+        reminderTiming:
+          formData.notifyPatient !== false
+            ? formData.reminderTiming ?? 'MID_DAY_BEFORE'
+            : undefined,
       });
       onClose();
     } catch (err: any) {
@@ -274,11 +283,10 @@ export default function AddEditAppointmentModal({
             </select>
           </div>
 
-          {/* Patient Phone (editable, used for SMS confirmation) */}
           <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Patient phone (for SMS confirmation)
+                Patient phone (for appointment reminder SMS)
               </label>
               <input
                 type="tel"
@@ -290,7 +298,8 @@ export default function AddEditAppointmentModal({
                 disabled={isSubmitting || !formData.patientId}
               />
               <p className="mt-1 text-xs text-gray-600">
-                This number will receive a confirmation SMS. Edit it here if the patient's record is incorrect.
+                The patient and assigned specialist (or therapist/nurse) receive reminder SMS automatically.
+                Edit the number here if the patient record is incorrect.
               </p>
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -304,8 +313,23 @@ export default function AddEditAppointmentModal({
                 disabled={isSubmitting}
                 className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
               />
-              Send confirmation SMS to patient
+              Schedule appointment reminder SMS (patient and assigned provider)
             </label>
+            {(formData.notifyPatient ?? true) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">When to send reminder</label>
+                <select
+                  name="reminderTiming"
+                  value={formData.reminderTiming ?? 'MID_DAY_BEFORE'}
+                  onChange={handleInputChange}
+                  disabled={isSubmitting}
+                  className="input-field"
+                >
+                  <option value="MID_DAY_BEFORE">Midday on the day before the appointment</option>
+                  <option value="TWENTY_FOUR_HOURS_BEFORE">24 hours before the appointment time</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Nurse Selection */}

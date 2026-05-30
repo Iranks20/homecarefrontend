@@ -23,6 +23,7 @@ export interface CreateSpecialistData {
   hourlyRate?: number | null;
   bio?: string;
   hireDate: string;
+  dateOfBirth?: string;
   avatar?: string;
 }
 
@@ -101,6 +102,9 @@ function serializeSpecialistPayload(
 
   if (payload.hireDate) {
     data.hireDate = new Date(payload.hireDate).toISOString();
+  }
+  if (payload.dateOfBirth) {
+    data.dateOfBirth = new Date(payload.dateOfBirth).toISOString();
   }
 
   return data;

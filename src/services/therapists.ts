@@ -16,6 +16,7 @@ export interface Therapist {
   bio?: string;
   status: 'active' | 'inactive' | 'on-leave';
   hireDate: string;
+  dateOfBirth?: string | null;
   avatar?: string;
   createdAt: string;
   updatedAt: string;
@@ -41,6 +42,7 @@ export interface CreateTherapistData {
   hourlyRate?: number | null;
   bio?: string;
   hireDate: string;
+  dateOfBirth?: string;
   avatar?: string;
 }
 
@@ -88,6 +90,9 @@ function serializeTherapistPayload(
 
   if (payload.hireDate) {
     data.hireDate = new Date(payload.hireDate).toISOString();
+  }
+  if (payload.dateOfBirth) {
+    data.dateOfBirth = new Date(payload.dateOfBirth).toISOString();
   }
 
   return data;

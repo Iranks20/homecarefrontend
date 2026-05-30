@@ -219,6 +219,9 @@ export const API_ENDPOINTS = {
   SMS: {
     MESSAGES: '/v1/sms/messages',
     MESSAGE_BY_ID: (id: string) => `/v1/sms/messages/${id}`,
+    APPOINTMENT_REMINDERS: '/v1/sms/appointment-reminders',
+    BIRTHDAY_DELIVERIES: '/v1/sms/birthday-deliveries',
+    AUTOMATION_SETTINGS: '/v1/sms/automation-settings',
     TEMPLATES: '/v1/sms/templates',
     TEMPLATE_BY_ID: (id: string) => `/v1/sms/templates/${id}`,
     DIRECTORY: '/v1/sms/directory',

@@ -19,6 +19,7 @@ export interface NursePayload {
   experience: number;
   certifications?: string[];
   hireDate: string;
+  dateOfBirth?: string;
   avatar?: string;
   status?: Nurse['status'];
 }
@@ -60,6 +61,9 @@ function serializeNurse(payload: Partial<NursePayload>): Record<string, unknown>
   }
   if (payload.hireDate) {
     data.hireDate = new Date(payload.hireDate).toISOString();
+  }
+  if (payload.dateOfBirth) {
+    data.dateOfBirth = new Date(payload.dateOfBirth).toISOString();
   }
   // Convert empty licenseNumber to null
   if (payload.licenseNumber !== undefined) {

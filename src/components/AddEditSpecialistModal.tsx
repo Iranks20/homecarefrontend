@@ -22,6 +22,7 @@ interface SpecialistFormValues {
   hourlyRate: number;
   bio?: string;
   hireDate: string;
+  dateOfBirth?: string;
   avatar?: string;
   status?: Specialist['status'];
 }
@@ -56,6 +57,7 @@ export default function AddEditSpecialistModal({
     hourlyRate: 0,
     bio: '',
     hireDate: new Date().toISOString().split('T')[0],
+    dateOfBirth: '',
     avatar: '',
     status: 'active',
   });
@@ -115,6 +117,9 @@ export default function AddEditSpecialistModal({
         hireDate: specialist.hireDate
           ? new Date(specialist.hireDate).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0],
+        dateOfBirth: (specialist as Specialist & { dateOfBirth?: string }).dateOfBirth
+          ? new Date((specialist as Specialist & { dateOfBirth?: string }).dateOfBirth!).toISOString().split('T')[0]
+          : '',
         avatar: specialist.avatar ?? '',
         status: specialist.status,
       });
@@ -139,6 +144,7 @@ export default function AddEditSpecialistModal({
         hourlyRate: 0,
         bio: '',
         hireDate: new Date().toISOString().split('T')[0],
+    dateOfBirth: '',
         avatar: '',
         status: 'active',
       });
@@ -648,6 +654,19 @@ export default function AddEditSpecialistModal({
                   className="input-field"
                   disabled={isSubmitting}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date of birth</label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth ?? ''}
+                  onChange={handleInputChange}
+                  className="input-field"
+                  disabled={isSubmitting}
+                />
+                <p className="mt-1 text-xs text-gray-500">Used for automatic birthday SMS reminders.</p>
               </div>
             </div>
           </div>

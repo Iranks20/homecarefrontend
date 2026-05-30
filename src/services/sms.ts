@@ -90,6 +90,70 @@ export interface DirectoryResponse {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
+export type AppointmentSmsReminderStatus =
+  | 'SCHEDULED'
+  | 'SENT'
+  | 'PARTIAL'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'SKIPPED';
+
+export interface AppointmentSmsReminder {
+  id: string;
+  appointmentId: string;
+  scheduledAt: string;
+  status: AppointmentSmsReminderStatus;
+  patientName: string;
+  patientPhone: string;
+  patientSentAt?: string;
+  patientSendError?: string;
+  providerType?: string;
+  providerName?: string;
+  providerPhone?: string;
+  providerSentAt?: string;
+  providerSendError?: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  serviceName?: string;
+  reminderTiming: AppointmentReminderTiming;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppointmentSmsReminderListParams {
+  view: 'upcoming' | 'delivered';
+  page?: number;
+  limit?: number;
+}
+
+export type AppointmentReminderTiming = 'MID_DAY_BEFORE' | 'TWENTY_FOUR_HOURS_BEFORE';
+
+export interface SmsAutomationSettings {
+  appointmentReminderTiming: AppointmentReminderTiming;
+  birthdaySmsEnabled: boolean;
+  birthdaySendHourUtc: number;
+  midDayReminderHourUtc: number;
+}
+
+export type BirthdaySmsDeliveryStatus = 'SCHEDULED' | 'SENT' | 'FAILED' | 'SKIPPED';
+
+export type BirthdaySmsRecipientType = 'PATIENT' | 'USER' | 'SPECIALIST' | 'THERAPIST' | 'NURSE';
+
+export interface BirthdaySmsDelivery {
+  id: string;
+  recipientType: BirthdaySmsRecipientType;
+  recipientId: string;
+  calendarYear: number;
+  recipientName: string;
+  phone: string;
+  scheduledAt: string;
+  status: BirthdaySmsDeliveryStatus;
+  sentAt?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 class SmsApiService {
   async send(payload: SendSmsPayload): Promise<SmsMessage> {
     const response = await apiService.post<SmsMessage>(API_ENDPOINTS.SMS.MESSAGES, payload);
@@ -122,6 +186,44 @@ class SmsApiService {
 
   async deleteTemplate(id: string): Promise<void> {
     await apiService.delete(API_ENDPOINTS.SMS.TEMPLATE_BY_ID(id));
+  }
+
+  async getAutomationSettings(): Promise<SmsAutomationSettings> {
+    const response = await apiService.get<SmsAutomationSettings>(API_ENDPOINTS.SMS.AUTOMATION_SETTINGS);
+    return response.data as SmsAutomationSettings;
+  }
+
+  async updateAutomationSettings(
+    patch: Partial<SmsAutomationSettings>
+  ): Promise<SmsAutomationSettings> {
+    const response = await apiService.put<SmsAutomationSettings>(
+      API_ENDPOINTS.SMS.AUTOMATION_SETTINGS,
+      patch
+    );
+    return response.data as SmsAutomationSettings;
+  }
+
+  async listAppointmentReminders(params: AppointmentSmsReminderListParams): Promise<{
+    reminders: AppointmentSmsReminder[];
+    pagination?: PaginatedResponse<AppointmentSmsReminder>['pagination'];
+  }> {
+    const response = await apiService.get<AppointmentSmsReminder[]>(
+      API_ENDPOINTS.SMS.APPOINTMENT_REMINDERS,
+      { params }
+    );
+    const reminders = Array.isArray(response.data) ? response.data : [];
+    return { reminders, pagination: response.pagination };
+  }
+
+  async listBirthdayDeliveries(params: AppointmentSmsReminderListParams): Promise<{
+    deliveries: BirthdaySmsDelivery[];
+    pagination?: PaginatedResponse<BirthdaySmsDelivery>['pagination'];
+  }> {
+    const response = await apiService.get<BirthdaySmsDelivery[]>(API_ENDPOINTS.SMS.BIRTHDAY_DELIVERIES, {
+      params,
+    });
+    const deliveries = Array.isArray(response.data) ? response.data : [];
+    return { deliveries, pagination: response.pagination };
   }
 
   async getDirectory(query: DirectoryQuery = {}): Promise<DirectoryResponse> {

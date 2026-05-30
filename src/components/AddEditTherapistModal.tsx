@@ -22,6 +22,7 @@ interface TherapistFormValues {
   hourlyRate: number;
   bio: string;
   hireDate: string;
+  dateOfBirth?: string;
   avatar: string;
 }
 
@@ -49,6 +50,7 @@ const DEFAULT_FORM: TherapistFormValues = {
   hourlyRate: 0,
   bio: '',
   hireDate: new Date().toISOString().split('T')[0],
+  dateOfBirth: '',
   avatar: '',
 };
 
@@ -117,6 +119,9 @@ export default function AddEditTherapistModal({
             hourlyRate: fullTherapist.hourlyRate || 0,
             bio: fullTherapist.bio || '',
             hireDate: fullTherapist.hireDate ? new Date(fullTherapist.hireDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            dateOfBirth: fullTherapist.dateOfBirth
+              ? new Date(fullTherapist.dateOfBirth as string).toISOString().split('T')[0]
+              : '',
             avatar: fullTherapist.avatar || '',
           });
           // Set avatar preview
@@ -525,6 +530,18 @@ export default function AddEditTherapistModal({
                   value={formData.hireDate}
                   onChange={handleInputChange}
                   required={mode === 'add'}
+                  className="input-field"
+                  disabled={isSaving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date of birth</label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth ?? ''}
+                  onChange={handleInputChange}
                   className="input-field"
                   disabled={isSaving}
                 />

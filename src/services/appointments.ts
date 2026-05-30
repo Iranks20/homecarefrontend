@@ -26,6 +26,7 @@ export interface CreateAppointmentData {
   notes?: string;
   patientPhone?: string;
   notifyPatient?: boolean;
+  reminderTiming?: 'MID_DAY_BEFORE' | 'TWENTY_FOUR_HOURS_BEFORE';
 }
 
 export interface RescheduleAppointmentData {

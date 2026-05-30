@@ -16,6 +16,7 @@ export interface NurseFormValues {
   certifications: string[];
   status: Nurse['status'];
   hireDate: string;
+  dateOfBirth?: string;
   avatar?: string;
 }
 
@@ -39,6 +40,7 @@ const DEFAULT_FORM: NurseFormValues = {
   certifications: [],
   status: 'active',
   hireDate: new Date().toISOString().split('T')[0],
+  dateOfBirth: '',
   avatar: '',
 };
 
@@ -84,6 +86,9 @@ export default function AddEditNurseModal({
         hireDate: nurse.hireDate
           ? new Date(nurse.hireDate).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0],
+        dateOfBirth: (nurse as Nurse & { dateOfBirth?: string }).dateOfBirth
+          ? new Date((nurse as Nurse & { dateOfBirth?: string }).dateOfBirth!).toISOString().split('T')[0]
+          : '',
         avatar: nurse.avatar ?? '',
       });
       // Set avatar preview with full URL if it's a relative path
@@ -468,6 +473,16 @@ export default function AddEditNurseModal({
                   value={formData.hireDate}
                   onChange={handleInputChange}
                   required
+                  className="input-field mt-1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Date of birth</label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth ?? ''}
+                  onChange={handleInputChange}
                   className="input-field mt-1"
                 />
               </div>

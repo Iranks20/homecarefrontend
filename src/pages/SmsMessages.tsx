@@ -13,6 +13,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  CalendarClock,
 } from 'lucide-react';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import {
@@ -23,6 +24,12 @@ import {
   type SmsMessage,
   type SmsRecipientInput,
   type SmsTemplate,
+  type AppointmentSmsReminder,
+  type AppointmentSmsReminderStatus,
+  type AppointmentReminderTiming,
+  type SmsAutomationSettings,
+  type BirthdaySmsDelivery,
+  type BirthdaySmsDeliveryStatus,
 } from '../services/sms';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -86,6 +93,78 @@ const statusBadge = (status: SmsMessage['status']) => {
   }
 };
 
+const reminderStatusBadge = (status: AppointmentSmsReminderStatus) => {
+  switch (status) {
+    case 'SENT':
+      return { label: 'Sent', class: 'bg-green-100 text-green-700' };
+    case 'PARTIAL':
+      return { label: 'Partial', class: 'bg-yellow-100 text-yellow-700' };
+    case 'FAILED':
+      return { label: 'Failed', class: 'bg-red-100 text-red-700' };
+    case 'CANCELLED':
+      return { label: 'Cancelled', class: 'bg-gray-100 text-gray-600' };
+    case 'SKIPPED':
+      return { label: 'Skipped', class: 'bg-gray-100 text-gray-600' };
+    case 'SCHEDULED':
+    default:
+      return { label: 'Scheduled', class: 'bg-blue-100 text-blue-700' };
+  }
+};
+
+const formatAppointmentDate = (iso: string, time: string) => {
+  try {
+    const date = new Date(iso).toLocaleDateString(undefined, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    return `${date} at ${time}`;
+  } catch {
+    return `${iso} at ${time}`;
+  }
+};
+
+const providerTypeLabel = (type?: string) => {
+  if (!type) return 'Provider';
+  return type.charAt(0).toUpperCase() + type.slice(1);
+};
+
+const reminderTimingLabel = (timing: AppointmentReminderTiming) =>
+  timing === 'TWENTY_FOUR_HOURS_BEFORE'
+    ? '24 hours before appointment'
+    : 'Midday day before';
+
+const birthdayRecipientLabel = (type: BirthdaySmsDelivery['recipientType']) => {
+  switch (type) {
+    case 'SPECIALIST':
+      return 'Specialist';
+    case 'THERAPIST':
+      return 'Therapist';
+    case 'NURSE':
+      return 'Nurse';
+    case 'USER':
+      return 'Staff user';
+    case 'PATIENT':
+    default:
+      return 'Patient';
+  }
+};
+
+const birthdayStatusBadge = (status: BirthdaySmsDeliveryStatus) => {
+  switch (status) {
+    case 'SENT':
+      return { label: 'Sent', class: 'bg-green-100 text-green-700' };
+    case 'FAILED':
+      return { label: 'Failed', class: 'bg-red-100 text-red-700' };
+    case 'SKIPPED':
+      return { label: 'Skipped', class: 'bg-gray-100 text-gray-600' };
+    case 'SCHEDULED':
+    default:
+      return { label: 'Scheduled', class: 'bg-blue-100 text-blue-700' };
+  }
+};
+
 const categoryBadge = (category: SmsCategory) => {
   switch (category) {
     case 'appointment':
@@ -104,7 +183,9 @@ const categoryBadge = (category: SmsCategory) => {
 export default function SmsMessages() {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const [activeTab, setActiveTab] = useState<'compose' | 'history' | 'templates'>('compose');
+  const [activeTab, setActiveTab] = useState<'compose' | 'history' | 'templates' | 'appointment-reminders'>(
+    'compose'
+  );
 
   const [category, setCategory] = useState<SmsCategory>('general');
   const [message, setMessage] = useState('');
@@ -150,6 +231,47 @@ export default function SmsMessages() {
     refetch: refetchHistory,
   } = useApi(() => smsService.list({ limit: 100 }), []);
 
+  const {
+    data: upcomingRemindersData,
+    loading: loadingUpcomingReminders,
+    error: upcomingRemindersError,
+    refetch: refetchUpcomingReminders,
+  } = useApi(() => smsService.listAppointmentReminders({ view: 'upcoming', limit: 50 }), []);
+
+  const {
+    data: deliveredRemindersData,
+    loading: loadingDeliveredReminders,
+    error: deliveredRemindersError,
+    refetch: refetchDeliveredReminders,
+  } = useApi(() => smsService.listAppointmentReminders({ view: 'delivered', limit: 50 }), []);
+
+  const {
+    data: automationSettings,
+    loading: loadingAutomation,
+    refetch: refetchAutomation,
+  } = useApi(() => smsService.getAutomationSettings(), []);
+
+  const {
+    data: upcomingBirthdaysData,
+    loading: loadingUpcomingBirthdays,
+    refetch: refetchUpcomingBirthdays,
+  } = useApi(() => smsService.listBirthdayDeliveries({ view: 'upcoming', limit: 50 }), []);
+
+  const {
+    data: deliveredBirthdaysData,
+    loading: loadingDeliveredBirthdays,
+    refetch: refetchDeliveredBirthdays,
+  } = useApi(() => smsService.listBirthdayDeliveries({ view: 'delivered', limit: 50 }), []);
+
+  const [automationForm, setAutomationForm] = useState<SmsAutomationSettings | null>(null);
+  const [savingAutomation, setSavingAutomation] = useState(false);
+
+  useEffect(() => {
+    if (automationSettings) {
+      setAutomationForm(automationSettings);
+    }
+  }, [automationSettings]);
+
   const sendMutation = useApiMutation(smsService.send.bind(smsService));
   const createTemplateMutation = useApiMutation(smsService.createTemplate.bind(smsService));
   const deleteTemplateMutation = useApiMutation(smsService.deleteTemplate.bind(smsService));
@@ -158,6 +280,52 @@ export default function SmsMessages() {
   const directoryPagination = directoryData?.pagination;
   const messages: SmsMessage[] = useMemo(() => messageHistory?.messages ?? [], [messageHistory]);
   const templateList: SmsTemplate[] = templates ?? [];
+  const upcomingReminders: AppointmentSmsReminder[] = useMemo(
+    () => upcomingRemindersData?.reminders ?? [],
+    [upcomingRemindersData]
+  );
+  const deliveredReminders: AppointmentSmsReminder[] = useMemo(
+    () => deliveredRemindersData?.reminders ?? [],
+    [deliveredRemindersData]
+  );
+  const upcomingBirthdays: BirthdaySmsDelivery[] = useMemo(
+    () => upcomingBirthdaysData?.deliveries ?? [],
+    [upcomingBirthdaysData]
+  );
+  const deliveredBirthdays: BirthdaySmsDelivery[] = useMemo(
+    () => deliveredBirthdaysData?.deliveries ?? [],
+    [deliveredBirthdaysData]
+  );
+
+  const handleSaveAutomation = async () => {
+    if (!automationForm) return;
+    setSavingAutomation(true);
+    try {
+      await smsService.updateAutomationSettings(automationForm);
+      addNotification({
+        title: 'SMS automation updated',
+        message: 'Automatic SMS rules were saved.',
+        type: 'success',
+        userId: 'system',
+        priority: 'medium',
+        category: 'system',
+      });
+      await refetchAutomation();
+      await refetchUpcomingReminders();
+      await refetchUpcomingBirthdays();
+    } catch (err: unknown) {
+      addNotification({
+        title: 'Unable to save automation settings',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        type: 'error',
+        userId: 'system',
+        priority: 'high',
+        category: 'system',
+      });
+    } finally {
+      setSavingAutomation(false);
+    }
+  };
 
   const totalRecipients = useMemo(() => {
     const manual = manualPhones
@@ -338,7 +506,7 @@ export default function SmsMessages() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">SMS Messages</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Send appointment, prescription, birthday and payment SMS to patients and staff.
+            Send bulk SMS, manage templates, and configure automatic appointment and birthday messages.
           </p>
         </div>
       </div>
@@ -347,6 +515,10 @@ export default function SmsMessages() {
         <nav className="-mb-px flex gap-6">
           {([
             { id: 'compose', label: 'Compose' },
+            {
+              id: 'appointment-reminders',
+              label: `Appointment reminders (${upcomingReminders.length})`,
+            },
             { id: 'history', label: `History (${messages.length})` },
             { id: 'templates', label: `Templates (${templateList.length})` },
           ] as const).map((tab) => (
@@ -706,6 +878,414 @@ export default function SmsMessages() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'appointment-reminders' && (
+        <div className="space-y-8">
+          <div className="card">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-primary-500" />
+              SMS automation settings
+            </h2>
+            {loadingAutomation && !automationForm && (
+              <p className="text-sm text-gray-500">Loading settings...</p>
+            )}
+            {automationForm && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Default appointment reminder timing
+                  </label>
+                  <select
+                    value={automationForm.appointmentReminderTiming}
+                    onChange={(e) =>
+                      setAutomationForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              appointmentReminderTiming: e.target.value as AppointmentReminderTiming,
+                            }
+                          : prev
+                      )
+                    }
+                    className="input-field"
+                  >
+                    <option value="MID_DAY_BEFORE">Midday on the day before the appointment</option>
+                    <option value="TWENTY_FOUR_HOURS_BEFORE">24 hours before the appointment time</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Midday send hour (UTC)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={automationForm.midDayReminderHourUtc}
+                    onChange={(e) =>
+                      setAutomationForm((prev) =>
+                        prev
+                          ? { ...prev, midDayReminderHourUtc: Number(e.target.value) }
+                          : prev
+                      )
+                    }
+                    className="input-field"
+                  />
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input
+                    id="birthdaySmsEnabled"
+                    type="checkbox"
+                    checked={automationForm.birthdaySmsEnabled}
+                    onChange={(e) =>
+                      setAutomationForm((prev) =>
+                        prev ? { ...prev, birthdaySmsEnabled: e.target.checked } : prev
+                      )
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600"
+                  />
+                  <label htmlFor="birthdaySmsEnabled" className="text-sm text-gray-700">
+                    Automatically send happy birthday SMS to patients, specialists, therapists, nurses, and
+                    other staff on their birthday (requires date of birth on their profile)
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Birthday SMS send hour (UTC)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={automationForm.birthdaySendHourUtc}
+                    onChange={(e) =>
+                      setAutomationForm((prev) =>
+                        prev ? { ...prev, birthdaySendHourUtc: Number(e.target.value) } : prev
+                      )
+                    }
+                    className="input-field"
+                    disabled={!automationForm.birthdaySmsEnabled}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={handleSaveAutomation}
+                    disabled={savingAutomation}
+                    className="btn-primary"
+                  >
+                    {savingAutomation ? 'Saving...' : 'Save automation settings'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-sm text-blue-900">
+            <p className="font-medium">Appointment reminders</p>
+            <p className="mt-1 text-blue-800/90">
+              When scheduling, you can enable reminders for the patient and assigned provider. Each appointment
+              uses either midday the day before or exactly 24 hours before the appointment time.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                refetchUpcomingReminders();
+                refetchDeliveredReminders();
+                refetchUpcomingBirthdays();
+                refetchDeliveredBirthdays();
+              }}
+              className="mt-3 text-sm font-medium text-primary-700 hover:text-primary-900"
+            >
+              Refresh all lists
+            </button>
+          </div>
+
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Soon to be sent</h2>
+            {upcomingRemindersError && (
+              <div className="card text-sm text-red-600 mb-3">Unable to load upcoming reminders.</div>
+            )}
+            {loadingUpcomingReminders && (
+              <div className="card text-sm text-gray-500">Loading upcoming reminders...</div>
+            )}
+            {!loadingUpcomingReminders && upcomingReminders.length === 0 && !upcomingRemindersError && (
+              <div className="card text-center text-sm text-gray-500 py-10">
+                No appointment reminders are queued right now.
+              </div>
+            )}
+            {upcomingReminders.length > 0 && (
+              <div className="card overflow-x-auto p-0">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs font-medium text-gray-600 uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Send at</th>
+                      <th className="px-4 py-3">Appointment</th>
+                      <th className="px-4 py-3">Patient</th>
+                      <th className="px-4 py-3">Provider</th>
+                      <th className="px-4 py-3">Timing</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {upcomingReminders.map((row) => {
+                      const badge = reminderStatusBadge(row.status);
+                      return (
+                        <tr key={row.id} className="hover:bg-gray-50/80">
+                          <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(row.scheduledAt)}</td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">
+                              {formatAppointmentDate(row.appointmentDate, row.appointmentTime)}
+                            </div>
+                            {row.serviceName && (
+                              <div className="text-xs text-gray-500">{row.serviceName}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>{row.patientName}</div>
+                            <div className="text-xs text-gray-500 flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {row.patientPhone || '—'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.providerName ? (
+                              <>
+                                <div>
+                                  {row.providerName}
+                                  <span className="text-xs text-gray-500 ml-1">
+                                    ({providerTypeLabel(row.providerType)})
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500 flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {row.providerPhone || '—'}
+                                </div>
+                              </>
+                            ) : (
+                              <span className="text-gray-400">Not assigned</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                            {reminderTimingLabel(row.reminderTiming)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${badge.class}`}>
+                              {badge.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Birthday messages — soon to be sent</h2>
+            {loadingUpcomingBirthdays && (
+              <div className="card text-sm text-gray-500">Loading upcoming birthday messages...</div>
+            )}
+            {!loadingUpcomingBirthdays && upcomingBirthdays.length === 0 && (
+              <div className="card text-center text-sm text-gray-500 py-8">
+                No birthday messages queued for today.
+              </div>
+            )}
+            {upcomingBirthdays.length > 0 && (
+              <div className="card overflow-x-auto p-0">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs font-medium text-gray-600 uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Send at</th>
+                      <th className="px-4 py-3">Recipient</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Phone</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {upcomingBirthdays.map((row) => {
+                      const badge = birthdayStatusBadge(row.status);
+                      return (
+                        <tr key={row.id} className="hover:bg-gray-50/80">
+                          <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(row.scheduledAt)}</td>
+                          <td className="px-4 py-3">{row.recipientName}</td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {birthdayRecipientLabel(row.recipientType)}
+                          </td>
+                          <td className="px-4 py-3">{row.phone || '—'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${badge.class}`}>
+                              {badge.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Birthday messages — already sent</h2>
+            {loadingDeliveredBirthdays && (
+              <div className="card text-sm text-gray-500">Loading sent birthday messages...</div>
+            )}
+            {!loadingDeliveredBirthdays && deliveredBirthdays.length === 0 && (
+              <div className="card text-center text-sm text-gray-500 py-8">
+                No birthday messages have been sent yet this year.
+              </div>
+            )}
+            {deliveredBirthdays.length > 0 && (
+              <div className="card overflow-x-auto p-0">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs font-medium text-gray-600 uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Recipient</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Phone</th>
+                      <th className="px-4 py-3">Sent at</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {deliveredBirthdays.map((row) => {
+                      const badge = birthdayStatusBadge(row.status);
+                      return (
+                        <tr key={row.id} className="hover:bg-gray-50/80">
+                          <td className="px-4 py-3">{row.recipientName}</td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {birthdayRecipientLabel(row.recipientType)}
+                          </td>
+                          <td className="px-4 py-3">{row.phone || '—'}</td>
+                          <td className="px-4 py-3">
+                            {row.sentAt ? formatDateTime(row.sentAt) : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${badge.class}`}>
+                              {badge.label}
+                            </span>
+                            {row.errorMessage && (
+                              <p className="text-xs text-red-600 mt-1">{row.errorMessage}</p>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Appointment reminders — already sent</h2>
+            {deliveredRemindersError && (
+              <div className="card text-sm text-red-600 mb-3">Unable to load sent reminders.</div>
+            )}
+            {loadingDeliveredReminders && (
+              <div className="card text-sm text-gray-500">Loading sent reminders...</div>
+            )}
+            {!loadingDeliveredReminders && deliveredReminders.length === 0 && !deliveredRemindersError && (
+              <div className="card text-center text-sm text-gray-500 py-10">
+                No appointment reminders have been sent yet.
+              </div>
+            )}
+            {deliveredReminders.length > 0 && (
+              <div className="card overflow-x-auto p-0">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs font-medium text-gray-600 uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Appointment</th>
+                      <th className="px-4 py-3">Patient SMS</th>
+                      <th className="px-4 py-3">Provider SMS</th>
+                      <th className="px-4 py-3">Overall</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {deliveredReminders.map((row) => {
+                      const badge = reminderStatusBadge(row.status);
+                      return (
+                        <tr key={row.id} className="hover:bg-gray-50/80">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">
+                              {formatAppointmentDate(row.appointmentDate, row.appointmentTime)}
+                            </div>
+                            {row.serviceName && (
+                              <div className="text-xs text-gray-500">{row.serviceName}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.patientSentAt ? (
+                              <div className="flex items-start gap-2 text-green-700">
+                                <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <div>{row.patientName}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {formatDateTime(row.patientSentAt)}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-start gap-2 text-red-600">
+                                <XCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <div>Not sent</div>
+                                  {row.patientSendError && (
+                                    <div className="text-xs">{row.patientSendError}</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.providerName ? (
+                              row.providerSentAt ? (
+                                <div className="flex items-start gap-2 text-green-700">
+                                  <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <div>
+                                      {row.providerName} ({providerTypeLabel(row.providerType)})
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {formatDateTime(row.providerSentAt)}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-start gap-2 text-red-600">
+                                  <XCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <div>Not sent</div>
+                                    {row.providerSendError && (
+                                      <div className="text-xs">{row.providerSendError}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            ) : (
+                              <span className="text-gray-400">No provider</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${badge.class}`}>
+                              {badge.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </div>
       )}
 
