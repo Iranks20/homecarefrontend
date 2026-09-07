@@ -176,6 +176,9 @@ export interface InvoiceLineItem {
   procedureCode?: string | null;
   description: string;
   quantity: number;
+  quantityUnit?: 'day' | 'week' | 'month' | 'unit' | null;
+  serviceDateFrom?: string | null;
+  serviceDateTo?: string | null;
   unitPrice: number;
   lineAmount: number;
   sortOrder: number;
@@ -190,9 +193,12 @@ export interface InvoiceLineItem {
 export interface Invoice {
   id: string;
   invoiceNumber?: string;
+  displayInvoiceNumber?: string | null;
+  displayReceiptNumber?: string | null;
   patientId: string;
   patientName: string;
   patientTitle?: string;
+  patientPhone?: string;
   serviceId?: string;
   serviceName: string;
   amount: number;
@@ -204,6 +210,10 @@ export interface Invoice {
   archivedAt?: string | null;
   createdAt?: string;
   lineItems?: InvoiceLineItem[];
+  amountPaid?: number;
+  balanceDue?: number;
+  paymentStatus?: 'unpaid' | 'partial' | 'paid';
+  payments?: Payment[];
 }
 
 export interface BillingSummary {
@@ -373,8 +383,8 @@ export interface MedicationReminder {
 
 export interface Payment {
   id: string;
-  patientId: string;
-  patientName: string;
+  patientId?: string;
+  patientName?: string;
   invoiceId: string;
   amount: number;
   method: string;

@@ -5,8 +5,13 @@ import type {
   InvoiceSavePayload,
   ConsultationProvider,
   ConsultationProviderSource,
+  InvoiceLinePayload,
 } from '../services/billing';
-import type { PaymentMethod } from '../services/paymentMethods';
+import {
+  formatDateForInput as formatLineDateForInput,
+  normalizeQuantityUnit,
+  type InvoiceQuantityUnit,
+} from '../utils/invoiceLineDisplay';
 
 interface AddEditInvoiceModalProps {
   isOpen: boolean;
@@ -16,8 +21,8 @@ interface AddEditInvoiceModalProps {
   mode: 'add' | 'edit';
   patients: Patient[];
   services: Service[];
-  paymentMethods: PaymentMethod[];
   consultationProviders?: ConsultationProvider[];
+  defaultPatientId?: string;
 }
 
 const SERVICE_OPTION_PREFIX = 'service:';
@@ -80,6 +85,9 @@ type DraftLine = {
   consultSource: ConsultationProviderSource | '';
   consultEntityId: string;
   quantity: number;
+  quantityUnit: InvoiceQuantityUnit;
+  serviceDateFrom: string;
+  serviceDateTo: string;
   unitPrice: number;
   description: string;
 };
@@ -91,6 +99,9 @@ const emptyDraftLine = (): DraftLine => ({
   consultSource: '',
   consultEntityId: '',
   quantity: 1,
+  quantityUnit: 'day',
+  serviceDateFrom: '',
+  serviceDateTo: '',
   unitPrice: 0,
   description: '',
 });
@@ -124,6 +135,9 @@ const draftLinesFromInvoice = (invoice?: Invoice | null): DraftLine[] => {
           ? String(li.consultationTherapistId)
           : '',
         quantity: li.quantity,
+        quantityUnit: isConsult ? 'unit' : normalizeQuantityUnit(li.quantityUnit),
+        serviceDateFrom: isConsult ? '' : formatLineDateForInput(li.serviceDateFrom),
+        serviceDateTo: isConsult ? '' : formatLineDateForInput(li.serviceDateTo),
         unitPrice: li.unitPrice,
         description: li.description,
       };
@@ -138,6 +152,9 @@ const draftLinesFromInvoice = (invoice?: Invoice | null): DraftLine[] => {
         consultSource: '',
         consultEntityId: '',
         quantity: 1,
+        quantityUnit: 'day',
+        serviceDateFrom: '',
+        serviceDateTo: '',
         unitPrice: invoice.amount ?? 0,
         description: invoice.description || invoice.serviceName || '',
       },
@@ -154,8 +171,8 @@ export default function AddEditInvoiceModal({
   mode,
   patients,
   services,
-  paymentMethods,
   consultationProviders = [],
+  defaultPatientId,
 }: AddEditInvoiceModalProps) {
   const providerByKey = useMemo(() => {
     const map = new Map<string, ConsultationProvider>();
@@ -166,14 +183,20 @@ export default function AddEditInvoiceModal({
   const [patientId, setPatientId] = useState('');
   const [date, setDate] = useState(formatDateForInput());
   const [dueDate, setDueDate] = useState(formatDateForInput(undefined, defaultDue));
+  const [paymentDate, setPaymentDate] = useState(formatDateForInput());
   const [status, setStatus] = useState<Invoice['status']>('pending');
-  const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [description, setDescription] = useState('');
+  const [displayInvoiceNumber, setDisplayInvoiceNumber] = useState('');
+  const [displayReceiptNumber, setDisplayReceiptNumber] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([emptyDraftLine()]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const chargesLocked = mode === 'edit' && invoice?.status !== 'pending';
+  const completedPaymentCount =
+    invoice?.payments?.filter((payment) => payment.status === 'completed').length ?? 0;
+  const canEditPaymentDateOnInvoice =
+    status === 'paid' && (mode === 'add' || completedPaymentCount <= 1);
 
   useEffect(() => {
     if (!isOpen) {
@@ -186,19 +209,31 @@ export default function AddEditInvoiceModal({
       setDate(formatDateForInput(invoice.date));
       setDueDate(formatDateForInput(invoice.dueDate, defaultDue));
       setStatus(invoice.status);
-      setPaymentMethod(invoice.paymentMethod ?? '');
       setDescription(invoice.description);
+      setDisplayInvoiceNumber(invoice.displayInvoiceNumber ?? '');
+      setDisplayReceiptNumber(invoice.displayReceiptNumber ?? '');
+      const primaryPayment =
+        invoice.payments?.find((payment) => payment.status === 'completed') ?? invoice.payments?.[0];
+      setPaymentDate(formatDateForInput(primaryPayment?.date ?? invoice.date));
       setLines(draftLinesFromInvoice(invoice));
     } else {
-      setPatientId('');
+      setPatientId(defaultPatientId ?? '');
       setDate(formatDateForInput());
       setDueDate(formatDateForInput(undefined, defaultDue));
+      setPaymentDate(formatDateForInput());
       setStatus('pending');
-      setPaymentMethod('');
       setDescription('');
+      setDisplayInvoiceNumber('');
+      setDisplayReceiptNumber('');
       setLines([emptyDraftLine()]);
     }
-  }, [invoice, mode, isOpen]);
+  }, [invoice, mode, isOpen, defaultPatientId]);
+
+  useEffect(() => {
+    if (status === 'paid' && !paymentDate) {
+      setPaymentDate(date);
+    }
+  }, [status, date, paymentDate]);
 
   const updateLine = (key: string, patch: Partial<DraftLine>) => {
     setLines((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -219,6 +254,9 @@ export default function AddEditInvoiceModal({
         consultSource: consultParsed.source,
         consultEntityId: consultParsed.id,
         serviceId: '',
+        quantityUnit: 'unit',
+        serviceDateFrom: '',
+        serviceDateTo: '',
         unitPrice: provider.consultationFee > 0 ? provider.consultationFee : 0,
         description: `Consultation — ${provider.name}${descriptionSuffix}`,
       });
@@ -234,6 +272,9 @@ export default function AddEditInvoiceModal({
         serviceId: '',
         consultSource: '',
         consultEntityId: '',
+        quantityUnit: 'day',
+        serviceDateFrom: '',
+        serviceDateTo: '',
         unitPrice: 0,
         description: '',
       });
@@ -245,6 +286,9 @@ export default function AddEditInvoiceModal({
       serviceId,
       consultSource: '',
       consultEntityId: '',
+      quantityUnit: 'day',
+      serviceDateFrom: '',
+      serviceDateTo: '',
       unitPrice: svc?.price ?? 0,
       description: svc?.name ?? '',
     });
@@ -281,10 +325,10 @@ export default function AddEditInvoiceModal({
     setError(null);
 
     try {
-      const payloadLines = lines
+      const payloadLines: InvoiceLinePayload[] = lines
         .filter((row) => lineHasSelection(row))
         .map((row) => {
-          const base = {
+          const base: InvoiceLinePayload = {
             quantity: Math.max(1, Math.floor(row.quantity)),
             unitPrice: row.unitPrice,
             description: row.description.trim() || undefined,
@@ -301,7 +345,16 @@ export default function AddEditInvoiceModal({
             }
             throw new Error('Invalid consultation line');
           }
-          return { ...base, serviceId: row.serviceId };
+          if (row.serviceDateFrom && row.serviceDateTo && row.serviceDateFrom > row.serviceDateTo) {
+            throw new Error('Service end date must be on or after the start date.');
+          }
+          return {
+            ...base,
+            serviceId: row.serviceId,
+            quantityUnit: row.quantityUnit === 'unit' ? 'day' : row.quantityUnit,
+            ...(row.serviceDateFrom ? { serviceDateFrom: row.serviceDateFrom } : {}),
+            ...(row.serviceDateTo ? { serviceDateTo: row.serviceDateTo } : {}),
+          };
         });
 
       if (payloadLines.length === 0) {
@@ -322,32 +375,22 @@ export default function AddEditInvoiceModal({
         return;
       }
 
+      if (status === 'paid' && canEditPaymentDateOnInvoice && !paymentDate) {
+        setError('Payment / receipt date is required for paid invoices.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const payload: InvoiceSavePayload = {
         patientId,
         date,
         dueDate,
         description: description.trim(),
         status,
-        paymentMethod: status === 'paid' ? (paymentMethod || undefined) : undefined,
-        lines: chargesLocked && invoice?.lineItems?.length
-          ? invoice.lineItems.map((li) => {
-              const base = {
-                quantity: li.quantity,
-                unitPrice: li.unitPrice,
-                description: li.description,
-              };
-              if (li.consultationProviderId) {
-                return { ...base, consultationProviderId: li.consultationProviderId };
-              }
-              if (li.consultationSpecialistId) {
-                return { ...base, consultationSpecialistId: li.consultationSpecialistId };
-              }
-              if (li.consultationTherapistId) {
-                return { ...base, consultationTherapistId: li.consultationTherapistId };
-              }
-              return { ...base, serviceId: li.serviceId };
-            })
-          : payloadLines,
+        displayInvoiceNumber: displayInvoiceNumber.trim() || null,
+        displayReceiptNumber: displayReceiptNumber.trim() || null,
+        ...(status === 'paid' && canEditPaymentDateOnInvoice ? { paymentDate } : {}),
+        ...(chargesLocked ? {} : { lines: payloadLines }),
       };
 
       await onSave(payload);
@@ -406,6 +449,7 @@ export default function AddEditInvoiceModal({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Date *</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="input-field" />
+              <p className="mt-1 text-xs text-gray-500">Date printed on the invoice document.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Due Date *</label>
@@ -413,33 +457,78 @@ export default function AddEditInvoiceModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value as Invoice['status'])} required className="input-field">
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
-            </select>
-          </div>
-
-          {status === 'paid' && (
+          {canEditPaymentDateOnInvoice && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Payment / receipt date *</label>
+              <input
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
                 required
-                className="input-field"
-              >
-                <option value="">Select payment method</option>
-                {paymentMethods.map((method) => (
-                  <option key={method.id} value={method.name}>
-                    {method.name}
-                  </option>
-                ))}
-              </select>
+                className="input-field max-w-xs"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Shown on receipts. Use the actual date payment was received when backfilling past transactions.
+              </p>
             </div>
           )}
+
+          {status === 'paid' && !canEditPaymentDateOnInvoice && (
+            <p className="text-xs text-gray-500">
+              This invoice has multiple recorded payments. Each payment keeps its own date from Record Payment.
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Invoice No. (shown on invoice)</label>
+              <input
+                type="text"
+                value={displayInvoiceNumber}
+                onChange={(e) => setDisplayInvoiceNumber(e.target.value)}
+                className="input-field"
+                placeholder="Enter the number to print on the invoice"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Receipt No. (shown on receipt)</label>
+              <input
+                type="text"
+                value={displayReceiptNumber}
+                onChange={(e) => setDisplayReceiptNumber(e.target.value)}
+                className="input-field"
+                placeholder="Enter the number to print on receipts"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 -mt-4">
+            The system still keeps an internal invoice reference automatically. Only the numbers you enter here appear on printed or downloaded invoices and receipts.
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+            <select
+              value={status}
+              onChange={(e) => {
+                const next = e.target.value as Invoice['status'];
+                setStatus(next);
+                if (next === 'paid') {
+                  setPaymentDate(date);
+                }
+              }}
+              required
+              className="input-field"
+            >
+              <option value="pending">Pending</option>
+              <option value="overdue">Overdue</option>
+              <option value="paid">Paid (historical backfill / manual override)</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              New invoices normally start as Pending and turn Paid once payment is recorded under Record Payment
+              (installments supported). Choose Paid to enter old invoices and receipts with custom invoice and payment
+              dates in one step.
+            </p>
+          </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -462,6 +551,38 @@ export default function AddEditInvoiceModal({
                 return (
                 <div key={row.key} className="p-4 space-y-3 bg-gray-50/50">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <div className="md:col-span-2 xl:col-span-1 min-w-0">
+                      <label className="block text-xs text-gray-600 mb-1">
+                        {row.kind === 'service' ? 'Qty & unit' : 'Qty'}
+                      </label>
+                      <div className={row.kind === 'service' ? 'flex gap-1' : ''}>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={row.quantity}
+                          onChange={(e) => updateLine(row.key, { quantity: Number(e.target.value) })}
+                          disabled={chargesLocked}
+                          className={`input-field text-sm ${row.kind === 'service' ? 'w-16 shrink-0' : ''}`}
+                        />
+                        {row.kind === 'service' && (
+                          <select
+                            value={row.quantityUnit}
+                            onChange={(e) =>
+                              updateLine(row.key, {
+                                quantityUnit: e.target.value as InvoiceQuantityUnit,
+                              })
+                            }
+                            disabled={chargesLocked}
+                            className="input-field text-sm min-w-0 flex-1"
+                          >
+                            <option value="day">Days</option>
+                            <option value="week">Weeks</option>
+                            <option value="month">Months</option>
+                          </select>
+                        )}
+                      </div>
+                    </div>
                     <div className="md:col-span-6 xl:col-span-7 min-w-0">
                       <label className="block text-xs text-gray-600 mb-1">Service or consultation</label>
                       <select
@@ -518,18 +639,6 @@ export default function AddEditInvoiceModal({
                         </p>
                       )}
                     </div>
-                    <div className="md:col-span-2 xl:col-span-1 min-w-0">
-                      <label className="block text-xs text-gray-600 mb-1">Qty</label>
-                      <input
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={row.quantity}
-                        onChange={(e) => updateLine(row.key, { quantity: Number(e.target.value) })}
-                        disabled={chargesLocked}
-                        className="input-field text-sm"
-                      />
-                    </div>
                     <div className="md:col-span-2 xl:col-span-2 min-w-0">
                       <label className="block text-xs text-gray-600 mb-1">Unit price (UGX)</label>
                       <input
@@ -570,6 +679,30 @@ export default function AddEditInvoiceModal({
                       placeholder="Defaults to service or consultation name"
                     />
                   </div>
+                  {row.kind === 'service' && lineHasSelection(row) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Service from</label>
+                        <input
+                          type="date"
+                          value={row.serviceDateFrom}
+                          onChange={(e) => updateLine(row.key, { serviceDateFrom: e.target.value })}
+                          disabled={chargesLocked}
+                          className="input-field text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Service to</label>
+                        <input
+                          type="date"
+                          value={row.serviceDateTo}
+                          onChange={(e) => updateLine(row.key, { serviceDateTo: e.target.value })}
+                          disabled={chargesLocked}
+                          className="input-field text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 );
               })}

@@ -4,6 +4,12 @@ export function getLogoUrl(): string {
   return companyLogoUrl;
 }
 
+export function getLogoImageFormat(dataUrl: string): 'PNG' | 'WEBP' | 'JPEG' {
+  if (dataUrl.includes('image/webp')) return 'WEBP';
+  if (dataUrl.includes('image/jpeg') || dataUrl.includes('image/jpg')) return 'JPEG';
+  return 'PNG';
+}
+
 export async function getLogoBase64(): Promise<string> {
   try {
     const response = await fetch(getLogoUrl());

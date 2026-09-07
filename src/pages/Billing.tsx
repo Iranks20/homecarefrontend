@@ -11,16 +11,17 @@ import {
   Edit,
   Trash2,
   AlertCircle,
-  X,
   Printer,
   Archive,
   BarChart3,
   FileSpreadsheet,
   Receipt,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Invoice } from '../types';
 import AddEditInvoiceModal from '../components/AddEditInvoiceModal';
+import InvoiceDetailModal from '../components/InvoiceDetailModal';
 import { billingService, type InvoiceSavePayload } from '../services/billing';
 import { paymentMethodService } from '../services/paymentMethods';
 import { patientService } from '../services/patients';
@@ -28,11 +29,8 @@ import servicesService from '../services/services';
 import { useApi, useApiMutation } from '../hooks/useApi';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  buildInvoicePrintHtml,
-  buildReceiptPrintHtml,
-  openBillingPrintDocument,
-} from '../utils/billingDocuments';
+import { downloadInvoicePdf, downloadReceiptPdf, resolvePrimaryReceiptPayment } from '../utils/billingPdf';
+import { adminInvoiceReferenceWithInternal } from '../utils/invoiceDocumentNumbers';
 
 const formatUgx = (n: number) => `${Number(n).toLocaleString()} UGX`;
 
@@ -66,7 +64,7 @@ export default function Billing() {
   const [reportPeriod, setReportPeriod] = useState<'day' | 'week' | 'month'>('month');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [detailInvoiceId, setDetailInvoiceId] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const { addNotification } = useNotifications();
@@ -129,6 +127,8 @@ export default function Billing() {
         (invoice.patientName?.toLowerCase() || '').includes(q) ||
         (invoice.serviceName?.toLowerCase() || '').includes(q) ||
         (invoice.invoiceNumber?.toLowerCase() || '').includes(q) ||
+        (invoice.displayInvoiceNumber?.toLowerCase() || '').includes(q) ||
+        (invoice.displayReceiptNumber?.toLowerCase() || '').includes(q) ||
         (invoice.id?.toLowerCase() || '').includes(q) ||
         (invoice.description?.toLowerCase() || '').includes(q) ||
         lineMatch;
@@ -161,21 +161,22 @@ export default function Billing() {
     .filter((invoice) => invoice.status === 'overdue')
     .reduce((sum, invoice) => sum + invoice.amount, 0);
 
+  const isFullyPaid = (invoice: Invoice): boolean => {
+    const ps = invoice.paymentStatus ?? (invoice.status === 'paid' ? 'paid' : 'unpaid');
+    return ps === 'paid';
+  };
+
+  const invoiceMatchesFilter = (invoice: Invoice, filter: typeof statusFilter): boolean => {
+    if (filter === 'all') return true;
+    const ps = invoice.paymentStatus ?? (invoice.status === 'paid' ? 'paid' : 'unpaid');
+    if (filter === 'paid') return ps === 'paid';
+    return ps !== 'paid';
+  };
+
   const handleAddInvoice = async (invoiceData: InvoiceSavePayload) => {
     try {
       const patientName = patients.find((p) => p.id === invoiceData.patientId)?.name ?? 'Patient';
       const createdInvoice = await createInvoiceMutation.mutate(invoiceData);
-      if (invoiceData.status === 'paid') {
-        const method = invoiceData.paymentMethod?.trim();
-        if (!method) throw new Error('Payment method is required for paid invoices.');
-        await billingService.processPayment({
-          invoiceId: createdInvoice.id,
-          patientId: createdInvoice.patientId,
-          amount: createdInvoice.amount,
-          method,
-          notes: invoiceData.description,
-        });
-      }
       toast.success(`Invoice for ${patientName} has been created successfully.`);
       addNotification({
         title: 'Invoice created',
@@ -186,7 +187,19 @@ export default function Billing() {
         category: 'system',
       });
       setIsAddModalOpen(false);
-      await refetchInvoices();
+      if (isFullyPaid(createdInvoice) && statusFilter === 'unpaid') {
+        setStatusFilter('paid');
+        toast.info('Invoice is fully paid — switched to the Paid tab.');
+        await refetchSummary();
+        return;
+      }
+      if (!invoiceMatchesFilter(createdInvoice, statusFilter)) {
+        setStatusFilter('all');
+        toast.info('Showing all invoices so you can see the new invoice.');
+        await refetchSummary();
+        return;
+      }
+      await Promise.all([refetchInvoices(), refetchSummary()]);
     } catch (error: any) {
       toast.error(error?.message ?? 'Failed to create invoice. Please try again.');
       addNotification({
@@ -206,18 +219,6 @@ export default function Billing() {
     try {
       const patientName = patients.find((p) => p.id === invoiceData.patientId)?.name ?? 'Patient';
       const updatedInvoice = await updateInvoiceMutation.mutate({ id: selectedInvoice.id, data: invoiceData });
-      const becamePaid = selectedInvoice.status !== 'paid' && invoiceData.status === 'paid';
-      if (becamePaid) {
-        const method = invoiceData.paymentMethod?.trim();
-        if (!method) throw new Error('Payment method is required for paid invoices.');
-        await billingService.processPayment({
-          invoiceId: updatedInvoice.id,
-          patientId: updatedInvoice.patientId,
-          amount: updatedInvoice.amount,
-          method,
-          notes: invoiceData.description,
-        });
-      }
       toast.success(`Invoice for ${patientName} has been updated successfully.`);
       addNotification({
         title: 'Invoice updated',
@@ -229,7 +230,13 @@ export default function Billing() {
       });
       setIsEditModalOpen(false);
       setSelectedInvoice(null);
-      await refetchInvoices();
+      if (isFullyPaid(updatedInvoice) && statusFilter === 'unpaid') {
+        setStatusFilter('paid');
+        toast.info('Invoice is fully paid — switched to the Paid tab.');
+        await refetchSummary();
+        return;
+      }
+      await Promise.all([refetchInvoices(), refetchSummary()]);
     } catch (error: any) {
       toast.error(error?.message ?? 'Failed to update invoice. Please try again.');
       addNotification({
@@ -286,33 +293,27 @@ export default function Billing() {
 
   const handleViewInvoice = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
-    setIsViewModalOpen(true);
+    setDetailInvoiceId(invoice.id);
   };
 
   const handleOpenInvoiceDocument = (invoice: Invoice) => {
-    if (invoice.status === 'paid') {
-      toast.info('This invoice is paid. Use Receipt for the payment document.');
-      return;
-    }
-    const html = buildInvoicePrintHtml(invoice);
-    if (!openBillingPrintDocument(html)) {
-      toast.error('Please allow popups to print.');
-      return;
-    }
-    toast.success('Invoice opened. Use Print to save as PDF.');
+    void downloadInvoicePdf(invoice);
   };
 
-  const handleOpenReceiptDocument = (invoice: Invoice) => {
-    if (invoice.status !== 'paid') {
-      toast.info('Receipt is available after the invoice is marked paid.');
-      return;
+  const handleRefresh = async () => {
+    try {
+      await Promise.all([refetchInvoices(), refetchSummary()]);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to refresh billing data');
     }
-    const html = buildReceiptPrintHtml(invoice);
-    if (!openBillingPrintDocument(html)) {
-      toast.error('Please allow popups to print.');
-      return;
-    }
-    toast.success('Receipt opened. Use Print to save as PDF.');
+  };
+
+  const paymentStatusPill = (invoice: Invoice): { label: string; className: string } => {
+    const ps = invoice.paymentStatus ?? (invoice.status === 'paid' ? 'paid' : 'unpaid');
+    if (ps === 'paid') return { label: 'Paid', className: 'status-badge status-paid' };
+    if (ps === 'partial') return { label: 'Partial', className: 'status-badge bg-amber-100 text-amber-800' };
+    if (invoice.status === 'overdue') return { label: 'Overdue', className: 'status-badge status-overdue' };
+    return { label: 'Unpaid', className: 'status-badge status-pending' };
   };
 
   const exportInvoicesToCsv = () => {
@@ -469,6 +470,10 @@ export default function Billing() {
               </div>
             )}
           </div>
+          <button type="button" onClick={() => void handleRefresh()} className="btn-outline flex items-center">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </button>
           <button onClick={() => setIsAddModalOpen(true)} className="btn-primary flex items-center">
             <Plus className="h-4 w-4 mr-2" />
             Create Invoice
@@ -648,6 +653,7 @@ export default function Billing() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -655,13 +661,21 @@ export default function Billing() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredInvoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50">
+                {filteredInvoices.map((invoice) => {
+                  const pill = paymentStatusPill(invoice);
+                  const balance = invoice.balanceDue ?? Math.max(0, invoice.amount - (invoice.amountPaid ?? 0));
+                  const receiptPayment = resolvePrimaryReceiptPayment(invoice) ?? invoice.payments?.[0] ?? null;
+                  return (
+                  <tr
+                    key={invoice.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleViewInvoice(invoice)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <FileText className="h-4 w-4 text-gray-400 mr-2" />
                         <div className="text-sm font-medium text-gray-900">
-                          {invoice.invoiceNumber ?? ''}
+                          {adminInvoiceReferenceWithInternal(invoice)}
                         </div>
                       </div>
                     </td>
@@ -677,6 +691,11 @@ export default function Billing() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{formatUgx(invoice.amount)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-medium ${balance > 0 ? 'text-red-700' : 'text-gray-500'}`}>
+                        {formatUgx(balance)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -695,19 +714,9 @@ export default function Billing() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`status-badge ${
-                          invoice.status === 'paid'
-                            ? 'status-paid'
-                            : invoice.status === 'pending'
-                            ? 'status-pending'
-                            : 'status-overdue'
-                        }`}
-                      >
-                        {invoice.status}
-                      </span>
+                      <span className={pill.className}>{pill.label}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                       <button 
                         onClick={() => handleViewInvoice(invoice)}
                         className="text-primary-600 hover:text-primary-900 mr-4"
@@ -715,26 +724,26 @@ export default function Billing() {
                         <Eye className="h-4 w-4 inline mr-1" />
                         View
                       </button>
-                      {canIssueBillingDocuments &&
-                        (invoice.status === 'paid' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenReceiptDocument(invoice)}
-                            className="text-emerald-700 hover:text-emerald-900 mr-4"
-                          >
-                            <Receipt className="h-4 w-4 inline mr-1" />
-                            Receipt
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenInvoiceDocument(invoice)}
-                            className="text-secondary-600 hover:text-secondary-900 mr-4"
-                          >
-                            <FileText className="h-4 w-4 inline mr-1" />
-                            Invoice
-                          </button>
-                        ))}
+                      {canIssueBillingDocuments && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenInvoiceDocument(invoice)}
+                          className="text-secondary-600 hover:text-secondary-900 mr-4"
+                        >
+                          <FileText className="h-4 w-4 inline mr-1" />
+                          Invoice
+                        </button>
+                      )}
+                      {canIssueBillingDocuments && receiptPayment && (
+                        <button
+                          type="button"
+                          onClick={() => void downloadReceiptPdf(invoice, receiptPayment)}
+                          className="text-emerald-700 hover:text-emerald-900 mr-4"
+                        >
+                          <Receipt className="h-4 w-4 inline mr-1" />
+                          Receipt
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setSelectedInvoice(invoice);
@@ -765,7 +774,8 @@ export default function Billing() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -789,7 +799,6 @@ export default function Billing() {
         mode="add"
         patients={patients}
         services={services}
-        paymentMethods={paymentMethods}
         consultationProviders={consultationProviders}
       />
 
@@ -804,176 +813,34 @@ export default function Billing() {
         mode="edit"
         patients={patients}
         services={services}
-        paymentMethods={paymentMethods}
         consultationProviders={consultationProviders}
       />
 
-      {/* View Invoice Modal */}
-      {isViewModalOpen && selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b px-6 py-4 sticky top-0 bg-white z-10">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Invoice Details</h2>
-              <p className="text-sm text-gray-500">
-                {selectedInvoice.invoiceNumber ? `Invoice #${selectedInvoice.invoiceNumber}` : 'Invoice'}
-              </p>
-              </div>
-              <div className="flex items-center space-x-2">
-                {canIssueBillingDocuments &&
-                  (selectedInvoice.status === 'paid' ? (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenReceiptDocument(selectedInvoice)}
-                      className="btn-outline flex items-center"
-                      title="Print receipt"
-                    >
-                      <Receipt className="h-4 w-4 mr-2" />
-                      Receipt
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenInvoiceDocument(selectedInvoice)}
-                      className="btn-outline flex items-center"
-                      title="Print invoice"
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Invoice
-                    </button>
-                  ))}
-                <button
-                  type="button"
-                  className="rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-                  onClick={() => {
-                    setIsViewModalOpen(false);
-                    setSelectedInvoice(null);
-                  }}
-                  aria-label="Close"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="px-6 py-6 space-y-6">
-              {/* Invoice Header */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Bill To</h3>
-                  <p className="text-lg font-semibold text-gray-900">{selectedInvoice.patientName}</p>
-                  <p className="text-sm text-gray-600">Patient ID: {selectedInvoice.patientId}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Invoice Information</h3>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-900">
-                      <span className="font-medium">Date:</span> {new Date(selectedInvoice.date).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-gray-900">
-                      <span className="font-medium">Due Date:</span> {new Date(selectedInvoice.dueDate).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium text-gray-900">Status:</span>{' '}
-                      <span
-                        className={`status-badge ${
-                          selectedInvoice.status === 'paid'
-                            ? 'status-paid'
-                            : selectedInvoice.status === 'pending'
-                            ? 'status-pending'
-                            : 'status-overdue'
-                        }`}
-                      >
-                        {selectedInvoice.status}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <h3 className="text-sm font-medium text-gray-500 mb-4">Charges</h3>
-                <p className="text-sm text-gray-600 mb-3">{selectedInvoice.description}</p>
-                <div className="overflow-x-auto rounded-lg border border-gray-200">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50 text-left text-gray-600">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Qty</th>
-                        <th className="px-3 py-2 font-medium">Service / description</th>
-                        <th className="px-3 py-2 font-medium text-right">Unit</th>
-                        <th className="px-3 py-2 font-medium text-right">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {(selectedInvoice.lineItems?.length
-                        ? selectedInvoice.lineItems
-                        : [
-                            {
-                              id: 'legacy',
-                              serviceId: selectedInvoice.serviceId ?? '',
-                              serviceName: selectedInvoice.serviceName,
-                              description: selectedInvoice.description,
-                              quantity: 1,
-                              unitPrice: selectedInvoice.amount,
-                              lineAmount: selectedInvoice.amount,
-                              sortOrder: 0,
-                            },
-                          ]
-                      ).map((li) => (
-                        <tr key={li.id}>
-                          <td className="px-3 py-2 text-gray-900">{li.quantity}</td>
-                          <td className="px-3 py-2 text-gray-900">
-                            <div className="font-medium">{li.serviceName ?? '—'}</div>
-                            {li.description && li.description !== li.serviceName && (
-                              <div className="text-gray-600 text-xs mt-0.5">{li.description}</div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-700">{formatUgx(li.unitPrice)}</td>
-                          <td className="px-3 py-2 text-right font-medium text-gray-900">
-                            {formatUgx(li.lineAmount)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Total */}
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-900">Total Amount</span>
-                  <span className="text-2xl font-bold text-gray-900">{formatUgx(selectedInvoice.amount)}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="border-t pt-4 flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setIsViewModalOpen(false);
-                    setSelectedInvoice(null);
-                  }}
-                  className="btn-outline"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedInvoice(selectedInvoice);
-                    setIsViewModalOpen(false);
-                    setIsEditModalOpen(true);
-                  }}
-                  className="btn-primary flex items-center"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Invoice
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <InvoiceDetailModal
+        isOpen={detailInvoiceId !== null}
+        onClose={() => {
+          setDetailInvoiceId(null);
+          setSelectedInvoice(null);
+        }}
+        invoiceId={detailInvoiceId}
+        paymentMethods={paymentMethods}
+        onEdit={(invoice) => {
+          setDetailInvoiceId(null);
+          setSelectedInvoice(invoice);
+          setIsEditModalOpen(true);
+        }}
+        onChanged={(invoice) => {
+          if (invoice && isFullyPaid(invoice) && statusFilter === 'unpaid') {
+            setStatusFilter('paid');
+            toast.info('Invoice is fully paid — switched to the Paid tab.');
+            void refetchSummary();
+            return;
+          }
+          void Promise.all([refetchInvoices(), refetchSummary()]);
+        }}
+        onArchived={() => void refetchInvoices()}
+        onDeleted={() => void Promise.all([refetchInvoices(), refetchSummary()])}
+      />
     </div>
   );
 }
