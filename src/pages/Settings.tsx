@@ -48,9 +48,9 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 };
 
 const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
-  siteName: 'Teamwork Homecare',
-  siteEmail: 'support@homecare.com',
-  sitePhone: '+1-555-0101',
+  siteName: 'Teamwork Physiotherapy Centre International',
+  siteEmail: 'internationalphysiocentre@gmail.com',
+  sitePhone: '0200909453',
   maintenanceMode: false,
   registrationEnabled: true,
   emailVerificationRequired: true,

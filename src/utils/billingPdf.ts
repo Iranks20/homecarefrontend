@@ -2,7 +2,6 @@ import { jsPDF, GState } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import type { Invoice, Payment } from '../types';
 import { getLogoBase64, getLogoImageFormat } from './logo';
-import { settingsService } from '../services/settings';
 
 // ---------------------------------------------------------------------------
 // Layout constants
@@ -116,56 +115,31 @@ interface CompanyInfo {
   poBox: string;
   location: string;
   bankName: string;
-  /** Account/registration name shared by both the bank account and the mobile-money merchant lines. */
   accountName: string;
   bankAccountNumber: string;
+  momoMerchantName: string;
   mtnMomoMerchant: string;
   airtelPayMerchant: string;
 }
 
-// Real business details from the company's official paper invoice/receipt
-// books and payment-details card — used whenever the admin hasn't overridden
-// a field in Settings, so generated PDFs always carry genuine contact/payment
-// info instead of a placeholder.
 const COMPANY_FALLBACK: CompanyInfo = {
-  name: 'Teamwork Homecare',
-  tagline: 'Pro healthcare at your comfort',
-  email: 'Info@teamworkhomecare.com',
+  name: 'Teamwork Physiotherapy Centre International',
+  tagline: 'Expert care behind every recovery',
+  email: 'internationalphysiocentre@gmail.com',
   phone: '0200909453',
-  website: 'www.teamworkhomecare.com',
-  poBox: "P.O. Box 107270, Kampala",
-  location: 'Ntinda Martyrs Way, Kampala',
-  bankName: 'Post Bank',
-  accountName: 'Teamwork Homecare Services',
-  bankAccountNumber: '4020068000007',
-  mtnMomoMerchant: '322181',
-  airtelPayMerchant: '4276405',
+  website: 'physio-international.com',
+  poBox: 'P.O. Box 107270',
+  location: 'Location off Martyrs Way, Ntinda',
+  bankName: 'Pearl Bank',
+  accountName: 'Teamwork Physiotherapy Centre International',
+  bankAccountNumber: '4020068000421',
+  momoMerchantName: 'Teamwork Physiotherapy International',
+  mtnMomoMerchant: '06887312',
+  airtelPayMerchant: '4426738',
 };
 
-/** Pulls the admin-configured site details for the letterhead, falling back to
- * the real printed-stationery details above for anything not (yet) set in
- * Settings. Falls back quietly if settings can't be reached (e.g. offline) so
- * PDF generation never fails just because this optional detail is unavailable. */
 async function getCompanyInfo(): Promise<CompanyInfo> {
-  try {
-    const settings = await settingsService.getSystemSettings();
-    return {
-      name: settings?.siteName?.trim() || COMPANY_FALLBACK.name,
-      tagline: settings?.siteTagline?.trim() || COMPANY_FALLBACK.tagline,
-      email: COMPANY_FALLBACK.email,
-      phone: COMPANY_FALLBACK.phone,
-      website: settings?.siteWebsite?.trim() || COMPANY_FALLBACK.website,
-      poBox: settings?.sitePOBox?.trim() || COMPANY_FALLBACK.poBox,
-      location: settings?.siteLocation?.trim() || COMPANY_FALLBACK.location,
-      bankName: settings?.siteBankName?.trim() || COMPANY_FALLBACK.bankName,
-      accountName: settings?.siteAccountName?.trim() || COMPANY_FALLBACK.accountName,
-      bankAccountNumber: settings?.siteBankAccountNumber?.trim() || COMPANY_FALLBACK.bankAccountNumber,
-      mtnMomoMerchant: settings?.siteMtnMomoMerchant?.trim() || COMPANY_FALLBACK.mtnMomoMerchant,
-      airtelPayMerchant: settings?.siteAirtelPayMerchant?.trim() || COMPANY_FALLBACK.airtelPayMerchant,
-    };
-  } catch {
-    return COMPANY_FALLBACK;
-  }
+  return { ...COMPANY_FALLBACK };
 }
 
 /** Thin brand-colored rule across the very top of the page. */
@@ -507,7 +481,7 @@ export async function generateInvoicePdf(invoice: Invoice): Promise<jsPDF> {
     ['Account number', company.bankAccountNumber],
   ]);
   const momoBottom = drawCard(doc, MARGIN + paymentCardW + 6, y, paymentCardW, 'Mobile Money', [
-    company.accountName,
+    company.momoMerchantName,
     ['MTN MoMo merchant', company.mtnMomoMerchant],
     ['Airtel Pay merchant', company.airtelPayMerchant],
   ]);
