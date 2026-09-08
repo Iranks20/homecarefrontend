@@ -29,6 +29,37 @@ export function adminInvoiceReference(
   return `#${invoice.id.slice(0, 8)}`;
 }
 
+export function invoicePaymentReferenceLabel(
+  invoice: Pick<Invoice, 'displayInvoiceNumber' | 'invoiceNumber' | 'serviceName' | 'description'>
+): string {
+  const printed = invoice.displayInvoiceNumber?.trim();
+  const internal = invoice.invoiceNumber?.trim();
+  const invoiceLabel = printed
+    ? `Invoice #${printed}`
+    : internal
+    ? `Invoice #${internal}`
+    : 'Invoice';
+  const service = (invoice.serviceName || '').trim();
+  if (service && service !== '—' && service.toLowerCase() !== 'unknown service') {
+    return `${invoiceLabel} — ${service}`;
+  }
+  const memo = (invoice.description || '').trim();
+  if (memo) return `${invoiceLabel} — ${memo}`;
+  return invoiceLabel;
+}
+
+export function receiptPaymentForLabel(
+  invoice: Pick<Invoice, 'displayInvoiceNumber' | 'invoiceNumber' | 'serviceName' | 'description'>,
+  paymentDescription?: string | null
+): string {
+  const raw = (paymentDescription || '').trim();
+  const looksLikeInternalId =
+    /^Payment for invoice\s+[a-z0-9]+$/i.test(raw) ||
+    raw === 'Payment recorded when invoice marked as paid';
+  if (raw && !looksLikeInternalId) return raw;
+  return invoicePaymentReferenceLabel(invoice);
+}
+
 export function adminInvoiceReferenceWithInternal(
   invoice: Pick<Invoice, 'displayInvoiceNumber' | 'invoiceNumber' | 'id'>
 ): string {

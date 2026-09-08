@@ -2,6 +2,11 @@ import { jsPDF, GState } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import type { Invoice, Payment } from '../types';
 import { getLogoBase64, getLogoImageFormat } from './logo';
+import {
+  adminInvoiceReference,
+  receiptDocumentTitle,
+  receiptPaymentForLabel,
+} from './invoiceDocumentNumbers';
 
 // ---------------------------------------------------------------------------
 // Layout constants
@@ -561,9 +566,11 @@ export async function generateReceiptPdf(invoice: Invoice, payment: Payment): Pr
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const company = await getCompanyInfo();
 
+  const receiptTitle = receiptDocumentTitle(invoice);
+  const invoiceRef = adminInvoiceReference(invoice);
   let y = await drawLetterhead(doc, {
     title: 'RECEIPT',
-    subtitle: `Invoice #${invoice.invoiceNumber ?? invoice.id.slice(0, 8)}`,
+    subtitle: receiptTitle !== 'Receipt' ? `${receiptTitle} · ${invoiceRef}` : `Invoice ${invoiceRef}`,
     company,
     showLogo: true,
   });
@@ -596,7 +603,7 @@ export async function generateReceiptPdf(invoice: Invoice, payment: Payment): Pr
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   setText(doc, MUTED);
-  const forLabel = (payment.description || invoice.description || invoice.serviceName || '').toString();
+  const forLabel = receiptPaymentForLabel(invoice, payment.description);
   const forLines = doc.splitTextToSize(`For: ${forLabel}`, CONTENT_WIDTH - 100);
   doc.text(forLines, MARGIN + 95, y + 12, { align: 'left' });
   y += boxH + 10;

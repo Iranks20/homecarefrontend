@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import type { Invoice } from '../types';
 import type { PaymentMethod } from '../services/paymentMethods';
 import type { ProcessPaymentData } from '../services/billing';
+import { invoicePaymentReferenceLabel } from '../utils/invoiceDocumentNumbers';
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
@@ -88,7 +89,7 @@ export default function RecordPaymentModal({
         paymentDate,
       };
       if (transactionId.trim()) payload.transactionId = transactionId.trim();
-      if (notes.trim()) payload.notes = notes.trim();
+      payload.notes = notes.trim() || invoicePaymentReferenceLabel(invoice);
       await onSave(payload);
       setIsSubmitting(false);
       onClose();

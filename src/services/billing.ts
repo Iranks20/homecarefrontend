@@ -305,7 +305,7 @@ export class BillingService {
       amount: data.amount,
       method: String(data.method),
       transactionId: data.transactionId,
-      description: data.notes ?? `Payment for invoice ${data.invoiceId}`,
+      description: data.notes?.trim() || 'Payment received',
       paymentDate: data.paymentDate,
     });
     return normalizePayment(response.data, { patientId: data.patientId });
