@@ -477,7 +477,7 @@ export async function generateInvoicePdf(invoice: Invoice): Promise<jsPDF> {
   const paymentCardW = (CONTENT_WIDTH - 6) / 2;
   const bankBottom = drawCard(doc, MARGIN, y, paymentCardW, 'Bank Transfer', [
     company.bankName,
-    ['Account name', company.accountName],
+    ['Account', company.accountName],
     ['Account number', company.bankAccountNumber],
   ]);
   const momoBottom = drawCard(doc, MARGIN + paymentCardW + 6, y, paymentCardW, 'Mobile Money', [
