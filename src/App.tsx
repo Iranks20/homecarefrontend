@@ -42,6 +42,7 @@ import ConsultationRates from './pages/ConsultationRates';
 import Receptionists from './pages/Receptionists';
 import LabAttendants from './pages/LabAttendants';
 import Investigations from './pages/Investigations';
+import Visitors from './pages/Visitors';
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -98,6 +99,7 @@ function AppContent() {
           <Route path="/health-records" element={<HealthRecords />} />
           <Route path="/phone-reminders" element={<PhoneReminders />} />
           <Route path="/sms-messages" element={<SmsMessages />} />
+          <Route path="/visitors" element={<Visitors />} />
           <Route path="/scheduling" element={<Scheduling />} />
           <Route path="/services" element={<Services />} />
           <Route path="/training" element={<Training />} />

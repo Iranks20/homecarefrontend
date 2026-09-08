@@ -67,7 +67,8 @@ export type DirectoryRecipientType =
   | 'receptionist'
   | 'biller'
   | 'admin'
-  | 'lab_attendant';
+  | 'lab_attendant'
+  | 'visitor';
 
 export interface DirectoryRecipient {
   id: string;

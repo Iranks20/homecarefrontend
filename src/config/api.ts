@@ -270,6 +270,11 @@ export const API_ENDPOINTS = {
     BY_SERVICE: (serviceId: string) => `/v1/feedback/service/${serviceId}`,
     SUBMIT: '/v1/feedback/submit',
   },
+
+  VISITORS: {
+    BASE: '/v1/visitors',
+    BY_ID: (id: string) => `/v1/visitors/${id}`,
+  },
   
   // Lab & Referrals
   LAB: {

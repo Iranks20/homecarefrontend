@@ -49,6 +49,7 @@ const DIRECTORY_PAGE_SIZE = 25;
 const TYPE_FILTERS: { value: DirectoryRecipientType | 'all'; label: string }[] = [
   { value: 'all', label: 'All users' },
   { value: 'patient', label: 'Patients' },
+  { value: 'visitor', label: 'Visitors' },
   { value: 'specialist', label: 'Specialists' },
   { value: 'therapist', label: 'Therapists' },
   { value: 'nurse', label: 'Nurses' },
@@ -60,6 +61,7 @@ const TYPE_FILTERS: { value: DirectoryRecipientType | 'all'; label: string }[] =
 
 const TYPE_BADGE: Record<DirectoryRecipientType, { label: string; class: string }> = {
   patient: { label: 'Patient', class: 'bg-blue-50 text-blue-700' },
+  visitor: { label: 'Visitor', class: 'bg-violet-50 text-violet-700' },
   nurse: { label: 'Nurse', class: 'bg-pink-50 text-pink-700' },
   specialist: { label: 'Specialist', class: 'bg-indigo-50 text-indigo-700' },
   therapist: { label: 'Therapist', class: 'bg-emerald-50 text-emerald-700' },

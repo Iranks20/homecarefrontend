@@ -29,7 +29,8 @@ import {
   Heart,
   Shield,
   TestTube,
-  DollarSign
+  DollarSign,
+  BookUser,
 } from 'lucide-react';
 import { User as UserType } from '../types';
 
@@ -52,6 +53,7 @@ const getNavigationForRole = (role: string) => {
     { name: 'Specialists', href: '/specialists', icon: Activity },
     { name: 'Therapists', href: '/therapists', icon: Stethoscope },
     { name: 'Billers', href: '/billers', icon: CreditCard },
+    { name: 'Visitors', href: '/visitors', icon: BookUser },
     { name: 'SMS Messages', href: '/sms-messages', icon: MessageSquare },
   ];
 
@@ -99,6 +101,7 @@ const getNavigationForRole = (role: string) => {
     { name: 'Specialists', href: '/specialists', icon: Activity },
     { name: 'Therapists', href: '/therapists', icon: Stethoscope },
     { name: 'Nurses', href: '/nurses', icon: Heart },
+    { name: 'Visitors', href: '/visitors', icon: BookUser },
     { name: 'Lab Attendants', href: '/lab-attendants', icon: TestTube },
     { name: 'Billers', href: '/billers', icon: CreditCard },
     { name: 'Consultation rates', href: '/consultation-rates', icon: DollarSign },
@@ -121,6 +124,7 @@ const getNavigationForRole = (role: string) => {
     { name: 'Services', href: '/services', icon: Package },
     { name: 'Consultation rates', href: '/consultation-rates', icon: DollarSign },
     { name: 'Billing', href: '/billing', icon: CreditCard },
+    { name: 'Visitors', href: '/visitors', icon: BookUser },
     { name: 'SMS Messages', href: '/sms-messages', icon: MessageSquare },
   ];
 
